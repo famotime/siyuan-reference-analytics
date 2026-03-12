@@ -190,8 +190,10 @@ export function analyzeReferenceGraph(params: {
   const adjacency = buildAdjacencyFromReferences(documents.map(document => document.id), references)
   const evidenceByDocument: Record<string, NormalizedReference[]> = {}
   const inboundByDocument = new Map<string, NormalizedReference[]>()
-  const outboundByDocument = new Map<string, number>()
+  const inboundSourcesByDocument = new Map<string, Set<string>>()
+  const outboundTargetsByDocument = new Map<string, Set<string>>()
   const allTouchesByDocument = buildTouchIndex(documents.map(document => document.id), allReferences)
+  const historicalConnectionsByDocument = buildHistoricalConnectionsIndex(documents.map(document => document.id), allReferences)
   const dormantDays = params.dormantDays ?? 30
 
   for (const reference of references) {
@@ -199,7 +201,14 @@ export function analyzeReferenceGraph(params: {
     inbound.push(reference)
     inboundByDocument.set(reference.targetDocumentId, inbound)
 
-    outboundByDocument.set(reference.sourceDocumentId, (outboundByDocument.get(reference.sourceDocumentId) ?? 0) + 1)
+    const inboundSources = inboundSourcesByDocument.get(reference.targetDocumentId) ?? new Set<string>()
+    inboundSources.add(reference.sourceDocumentId)
+    inboundSourcesByDocument.set(reference.targetDocumentId, inboundSources)
+
+    const outboundTargets = outboundTargetsByDocument.get(reference.sourceDocumentId) ?? new Set<string>()
+    outboundTargets.add(reference.targetDocumentId)
+    outboundTargetsByDocument.set(reference.sourceDocumentId, outboundTargets)
+
     adjacency.get(reference.sourceDocumentId)?.add(reference.targetDocumentId)
     adjacency.get(reference.targetDocumentId)?.add(reference.sourceDocumentId)
   }
@@ -211,13 +220,14 @@ export function analyzeReferenceGraph(params: {
   const ranking = documents
     .map((document) => {
       const inbound = inboundByDocument.get(document.id) ?? []
-      const distinctSourceDocuments = new Set(inbound.map(reference => reference.sourceDocumentId))
+      const distinctSourceDocuments = inboundSourcesByDocument.get(document.id) ?? new Set<string>()
+      const outboundTargets = outboundTargetsByDocument.get(document.id) ?? new Set<string>()
       return {
         documentId: document.id,
         title: document.title,
-        inboundReferences: inbound.length,
+        inboundReferences: distinctSourceDocuments.size,
         distinctSourceDocuments: distinctSourceDocuments.size,
-        outboundReferences: outboundByDocument.get(document.id) ?? 0,
+        outboundReferences: outboundTargets.size,
         lastActiveAt: inbound.reduce((latest, reference) => {
           return compareTimestamp(reference.sourceUpdated, latest) > 0 ? reference.sourceUpdated : latest
         }, ''),
@@ -269,7 +279,7 @@ export function analyzeReferenceGraph(params: {
     .map((document) => {
       const historicalReferences = [...(allTouchesByDocument.get(document.id) ?? [])]
         .sort((left, right) => compareTimestamp(right.sourceUpdated, left.sourceUpdated))
-      const historicalReferenceCount = historicalReferences.length
+      const historicalReferenceCount = historicalConnectionsByDocument.get(document.id)?.size ?? 0
       const lastHistoricalAt = historicalReferences[0]?.sourceUpdated ?? ''
 
       return {
@@ -311,7 +321,7 @@ export function analyzeReferenceGraph(params: {
     summary: {
       totalDocuments: documents.length,
       analyzedDocuments: documents.length,
-      totalReferences: references.length,
+      totalReferences: countUniqueDirectedEdges(references),
       orphanCount: orphans.length,
       communityCount: communities.length,
       dormantCount: dormantDocuments.length,
@@ -383,14 +393,17 @@ export function analyzeTrends(params: {
         return communityIds.has(reference.sourceDocumentId) && communityIds.has(reference.targetDocumentId)
       })
 
+      const currentUniqueCount = countUniqueDirectedEdges(currentCommunityReferences)
+      const previousUniqueCount = countUniqueDirectedEdges(previousCommunityReferences)
+
       return {
         communityId: community.id,
         documentIds: community.documentIds,
         hubDocumentIds: community.hubDocumentIds,
         topTags: community.topTags,
-        currentReferences: currentCommunityReferences.length,
-        previousReferences: previousCommunityReferences.length,
-        delta: currentCommunityReferences.length - previousCommunityReferences.length,
+        currentReferences: currentUniqueCount,
+        previousReferences: previousUniqueCount,
+        delta: currentUniqueCount - previousUniqueCount,
       }
     })
     .sort((left, right) => {
@@ -410,10 +423,10 @@ export function analyzeTrends(params: {
 
   return {
     current: {
-      referenceCount: currentReferences.length,
+      referenceCount: countUniqueDirectedEdges(currentReferences),
     },
     previous: {
-      referenceCount: previousReferences.length,
+      referenceCount: countUniqueDirectedEdges(previousReferences),
     },
     risingDocuments: deltas
       .filter(item => item.delta > 0)
@@ -632,6 +645,18 @@ function buildTouchIndex(
     touches.get(reference.targetDocumentId)?.push(reference)
   }
   return touches
+}
+
+function buildHistoricalConnectionsIndex(
+  documentIds: string[],
+  references: NormalizedReference[],
+): Map<string, Set<string>> {
+  const connections = new Map<string, Set<string>>(documentIds.map(documentId => [documentId, new Set<string>()]))
+  for (const reference of references) {
+    connections.get(reference.sourceDocumentId)?.add(reference.targetDocumentId)
+    connections.get(reference.targetDocumentId)?.add(reference.sourceDocumentId)
+  }
+  return connections
 }
 
 function buildConnectionEdgeMap(references: NormalizedReference[]): Map<string, ConnectionChangeItem> {
@@ -1077,9 +1102,19 @@ function buildSuggestions(
 }
 
 function countByTarget(references: NormalizedReference[]): Map<string, number> {
-  const counts = new Map<string, number>()
+  const sourcesByTarget = new Map<string, Set<string>>()
   for (const reference of references) {
-    counts.set(reference.targetDocumentId, (counts.get(reference.targetDocumentId) ?? 0) + 1)
+    const sources = sourcesByTarget.get(reference.targetDocumentId) ?? new Set<string>()
+    sources.add(reference.sourceDocumentId)
+    sourcesByTarget.set(reference.targetDocumentId, sources)
   }
-  return counts
+  return new Map([...sourcesByTarget.entries()].map(([targetId, sources]) => [targetId, sources.size]))
+}
+
+function countUniqueDirectedEdges(references: NormalizedReference[]): number {
+  const edges = new Set<string>()
+  for (const reference of references) {
+    edges.add(`${reference.sourceDocumentId}|${reference.targetDocumentId}`)
+  }
+  return edges.size
 }

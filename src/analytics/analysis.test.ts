@@ -117,6 +117,54 @@ describe('analyzeReferenceGraph', () => {
       inactivityDays: expect.any(Number),
     })
   })
+
+  it('deduplicates inbound and outbound counts by document pairs', () => {
+    const report = analyzeReferenceGraph({
+      documents: [
+        { id: 'doc-a', box: 'box-1', path: '/a.sy', hpath: '/Alpha', title: 'Alpha', tags: [], created: '20260101090000', updated: '20260310120000' },
+        { id: 'doc-b', box: 'box-1', path: '/b.sy', hpath: '/Beta', title: 'Beta', tags: [], created: '20260102090000', updated: '20260310120000' },
+        { id: 'doc-c', box: 'box-1', path: '/c.sy', hpath: '/Gamma', title: 'Gamma', tags: [], created: '20260103090000', updated: '20260310120000' },
+      ],
+      references: [
+        { id: 'ref-1', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a1', targetDocumentId: 'doc-b', targetBlockId: 'blk-b1', content: '[[Beta]]', sourceUpdated: '20260310120000' },
+        { id: 'ref-2', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a2', targetDocumentId: 'doc-b', targetBlockId: 'blk-b2', content: '[[Beta]]', sourceUpdated: '20260310130000' },
+        { id: 'ref-3', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a3', targetDocumentId: 'doc-c', targetBlockId: 'blk-c1', content: '[[Gamma]]', sourceUpdated: '20260310140000' },
+        { id: 'ref-4', sourceDocumentId: 'doc-b', sourceBlockId: 'blk-b3', targetDocumentId: 'doc-a', targetBlockId: 'blk-a4', content: '[[Alpha]]', sourceUpdated: '20260310150000' },
+        { id: 'ref-5', sourceDocumentId: 'doc-c', sourceBlockId: 'blk-c2', targetDocumentId: 'doc-a', targetBlockId: 'blk-a5', content: '[[Alpha]]', sourceUpdated: '20260310160000' },
+      ],
+      now,
+      timeRange: 'all',
+    })
+
+    const docA = report.ranking.find(item => item.documentId === 'doc-a')
+    const docB = report.ranking.find(item => item.documentId === 'doc-b')
+    const docC = report.ranking.find(item => item.documentId === 'doc-c')
+
+    expect(docA?.inboundReferences).toBe(2)
+    expect(docA?.outboundReferences).toBe(2)
+    expect(docB?.inboundReferences).toBe(1)
+    expect(docB?.outboundReferences).toBe(1)
+    expect(docC?.inboundReferences).toBe(1)
+  })
+
+  it('deduplicates historical inbound and outbound counts for dormant evidence', () => {
+    const report = analyzeReferenceGraph({
+      documents: [
+        { id: 'doc-a', box: 'box-1', path: '/a.sy', hpath: '/Alpha', title: 'Alpha', tags: [], created: '20260101090000', updated: '20260101120000' },
+        { id: 'doc-b', box: 'box-1', path: '/b.sy', hpath: '/Beta', title: 'Beta', tags: [], created: '20260102090000', updated: '20260102120000' },
+      ],
+      references: [
+        { id: 'ref-old-1', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a1', targetDocumentId: 'doc-b', targetBlockId: 'blk-b1', content: '[[Beta]]', sourceUpdated: '20260105090000' },
+        { id: 'ref-old-2', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a2', targetDocumentId: 'doc-b', targetBlockId: 'blk-b2', content: '[[Beta]]', sourceUpdated: '20260105093000' },
+      ],
+      now,
+      timeRange: '7d',
+      dormantDays: 0,
+    })
+
+    const dormantBeta = report.dormantDocuments.find(item => item.documentId === 'doc-b')
+    expect(dormantBeta?.historicalReferenceCount).toBe(1)
+  })
 })
 
 describe('analyzeTrends', () => {
@@ -149,6 +197,29 @@ describe('analyzeTrends', () => {
     expect((trends as any).communityTrends[0]).toMatchObject({
       documentIds: ['doc-a', 'doc-b', 'doc-c'],
       delta: 4,
+    })
+  })
+
+  it('deduplicates trend counts by document pairs', () => {
+    const trends = analyzeTrends({
+      documents: [
+        { id: 'doc-a', box: 'box-1', path: '/a.sy', hpath: '/Alpha', title: 'Alpha', tags: [], created: '20260101090000', updated: '20260310120000' },
+        { id: 'doc-b', box: 'box-1', path: '/b.sy', hpath: '/Beta', title: 'Beta', tags: [], created: '20260102090000', updated: '20260310120000' },
+      ],
+      references: [
+        { id: 'ref-1', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a1', targetDocumentId: 'doc-b', targetBlockId: 'blk-b1', content: '[[Beta]]', sourceUpdated: '20260310120000' },
+        { id: 'ref-2', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a2', targetDocumentId: 'doc-b', targetBlockId: 'blk-b2', content: '[[Beta]]', sourceUpdated: '20260310130000' },
+      ],
+      now,
+      days: 7,
+    })
+
+    expect(trends.current.referenceCount).toBe(1)
+    expect(trends.risingDocuments[0]).toMatchObject({
+      documentId: 'doc-b',
+      currentReferences: 1,
+      previousReferences: 0,
+      delta: 1,
     })
   })
 })

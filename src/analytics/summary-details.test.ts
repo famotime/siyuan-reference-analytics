@@ -87,4 +87,31 @@ describe('buildSummaryDetailSections', () => {
       expect.objectContaining({ documentId: 'doc-a', badge: '2 分' }),
     ])
   })
+
+  it('deduplicates inbound and outbound counts by document pairs', () => {
+    const duplicateReferences = [
+      { id: 'ref-1', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a1', targetDocumentId: 'doc-b', targetBlockId: 'blk-b1', content: '[[Beta]]', sourceUpdated: '20260311120000' },
+      { id: 'ref-2', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a2', targetDocumentId: 'doc-b', targetBlockId: 'blk-b2', content: '[[Beta]]', sourceUpdated: '20260311130000' },
+      { id: 'ref-3', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a3', targetDocumentId: 'doc-c', targetBlockId: 'blk-c1', content: '[[Gamma]]', sourceUpdated: '20260311140000' },
+      { id: 'ref-4', sourceDocumentId: 'doc-c', sourceBlockId: 'blk-c2', targetDocumentId: 'doc-b', targetBlockId: 'blk-b3', content: '[[Beta]]', sourceUpdated: '20260311150000' },
+      { id: 'ref-5', sourceDocumentId: 'doc-c', sourceBlockId: 'blk-c3', targetDocumentId: 'doc-b', targetBlockId: 'blk-b4', content: '[[Beta]]', sourceUpdated: '20260311160000' },
+    ] as const
+
+    const sections = buildSummaryDetailSections({
+      documents: [...documents],
+      references: [...duplicateReferences],
+      report: report as any,
+      now,
+      timeRange: '7d',
+      dormantDays: 30,
+    })
+
+    const docA = sections.references.items.find(item => item.documentId === 'doc-a')
+    const docB = sections.references.items.find(item => item.documentId === 'doc-b')
+    const docC = sections.references.items.find(item => item.documentId === 'doc-c')
+
+    expect(docA?.meta).toBe('入链 0 / 出链 2')
+    expect(docB?.meta).toBe('入链 2 / 出链 0')
+    expect(docC?.meta).toBe('入链 1 / 出链 1')
+  })
 })

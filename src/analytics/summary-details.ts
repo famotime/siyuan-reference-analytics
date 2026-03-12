@@ -196,16 +196,27 @@ function filterActiveReferences(params: {
 }
 
 function buildActiveDocumentCounts(references: ReferenceRecord[]): Map<string, { inbound: number, outbound: number }> {
-  const counts = new Map<string, { inbound: number, outbound: number }>()
+  const outboundTargets = new Map<string, Set<string>>()
+  const inboundSources = new Map<string, Set<string>>()
 
   for (const reference of references) {
-    const source = counts.get(reference.sourceDocumentId) ?? { inbound: 0, outbound: 0 }
-    source.outbound += 1
-    counts.set(reference.sourceDocumentId, source)
+    const outbound = outboundTargets.get(reference.sourceDocumentId) ?? new Set<string>()
+    outbound.add(reference.targetDocumentId)
+    outboundTargets.set(reference.sourceDocumentId, outbound)
 
-    const target = counts.get(reference.targetDocumentId) ?? { inbound: 0, outbound: 0 }
-    target.inbound += 1
-    counts.set(reference.targetDocumentId, target)
+    const inbound = inboundSources.get(reference.targetDocumentId) ?? new Set<string>()
+    inbound.add(reference.sourceDocumentId)
+    inboundSources.set(reference.targetDocumentId, inbound)
+  }
+
+  const counts = new Map<string, { inbound: number, outbound: number }>()
+  for (const [documentId, targets] of outboundTargets) {
+    counts.set(documentId, { inbound: 0, outbound: targets.size })
+  }
+  for (const [documentId, sources] of inboundSources) {
+    const existing = counts.get(documentId) ?? { inbound: 0, outbound: 0 }
+    existing.inbound = sources.size
+    counts.set(documentId, existing)
   }
 
   return counts
