@@ -96,16 +96,67 @@
 
     <template v-else-if="report && trends">
       <div class="summary-grid">
-        <article
+        <button
           v-for="card in summaryCards"
           :key="card.label"
-          class="summary-card"
+          :class="['summary-card', 'summary-card--interactive', { 'summary-card--active': card.key === selectedSummaryCardKey }]"
+          type="button"
+          @click="selectSummaryCard(card.key)"
         >
           <span class="summary-card__label">{{ card.label }}</span>
           <strong class="summary-card__value">{{ card.value }}</strong>
           <span class="summary-card__hint">{{ card.hint }}</span>
-        </article>
+        </button>
       </div>
+
+      <section
+        v-if="selectedSummaryDetail"
+        class="panel"
+      >
+        <div class="panel-header">
+          <div>
+            <h2>{{ selectedSummaryDetail.title }}</h2>
+            <p>{{ selectedSummaryDetail.description }}</p>
+          </div>
+          <span class="meta-text">{{ selectedSummaryDetail.items.length }} 篇文档</span>
+        </div>
+
+        <div
+          v-if="selectedSummaryDetail.items.length"
+          class="summary-detail-list"
+        >
+          <article
+            v-for="item in selectedSummaryDetail.items"
+            :key="`${selectedSummaryDetail.key}-${item.documentId}`"
+            class="summary-detail-item"
+          >
+            <div class="summary-detail-item__header">
+              <button
+                class="summary-detail-item__title"
+                type="button"
+                @click="openDocument(item.documentId)"
+              >
+                {{ item.title }}
+              </button>
+              <span
+                v-if="item.badge"
+                class="badge"
+              >
+                {{ item.badge }}
+              </span>
+            </div>
+            <p class="summary-detail-item__meta">
+              {{ item.meta }}
+            </p>
+          </article>
+        </div>
+        <div
+          v-else
+          class="empty-state"
+        >
+          当前卡片下没有可展示的文档。
+        </div>
+      </section>
 
       <div class="layout-grid">
         <section class="panel panel--primary">
@@ -807,6 +858,11 @@ import {
   type OrphanSort,
   type TimeRange,
 } from '@/analytics/analysis'
+import {
+  buildSummaryDetailSections,
+  type SummaryCardItem,
+  type SummaryCardKey,
+} from '@/analytics/summary-details'
 import { loadAnalyticsSnapshot, type AnalyticsSnapshot } from '@/analytics/siyuan-data'
 
 type PathScope = 'focused' | 'all' | 'community'
@@ -839,6 +895,7 @@ const selectedEvidenceDocument = ref('')
 const selectedCommunityId = ref('')
 const pathScope = ref<PathScope>('focused')
 const maxPathDepth = ref(6)
+const selectedSummaryCardKey = ref<SummaryCardKey>('documents')
 
 const filters = computed<AnalyticsFilters>(() => ({
   notebook: selectedNotebook.value || undefined,
@@ -920,47 +977,74 @@ const selectedCommunityTrend = computed(() => {
   return communityTrendMap.value.get(selectedCommunity.value.id) ?? null
 })
 
-const summaryCards = computed(() => {
+const summaryCards = computed<SummaryCardItem[]>(() => {
   if (!report.value || !trends.value) {
     return []
   }
   return [
     {
+      key: 'documents',
       label: '文档样本',
       value: report.value.summary.totalDocuments.toString(),
       hint: '命中当前筛选条件的文档数',
     },
     {
+      key: 'references',
       label: '活跃关系',
       value: report.value.summary.totalReferences.toString(),
       hint: '当前窗口内的文档级引用次数',
     },
     {
+      key: 'communities',
       label: '主题社区',
       value: report.value.summary.communityCount.toString(),
       hint: '按桥接节点拆分后的主题簇',
     },
     {
+      key: 'orphans',
       label: '孤立文档',
       value: report.value.summary.orphanCount.toString(),
       hint: '历史上从未形成过文档级连接',
     },
     {
+      key: 'dormant',
       label: '沉没文档',
       value: report.value.summary.dormantCount.toString(),
       hint: `超过 ${dormantDays.value} 天未产生有效连接`,
     },
     {
+      key: 'bridges',
       label: '桥接节点',
       value: report.value.bridgeDocuments.length.toString(),
       hint: '断开后会削弱社区连接的文档',
     },
     {
+      key: 'propagation',
       label: '传播节点',
       value: report.value.summary.propagationCount.toString(),
       hint: '出现在关键路径上的高传播价值节点',
     },
   ]
+})
+
+const summaryDetailSections = computed(() => {
+  if (!snapshot.value || !report.value) {
+    return null
+  }
+
+  return buildSummaryDetailSections({
+    documents: snapshot.value.documents,
+    references: snapshot.value.references,
+    report: report.value,
+    now: analysisNow.value,
+    timeRange: timeRange.value,
+    filters: filters.value,
+    dormantDays: dormantDays.value,
+  })
+})
+
+const selectedSummaryDetail = computed(() => {
+  return summaryDetailSections.value?.[selectedSummaryCardKey.value] ?? null
 })
 
 const pathOptions = computed(() => {
@@ -1096,6 +1180,15 @@ watch(report, (nextReport) => {
   }
 }, { immediate: true })
 
+watch(summaryCards, (cards) => {
+  if (cards.length === 0) {
+    return
+  }
+  if (!cards.some(card => card.key === selectedSummaryCardKey.value)) {
+    selectedSummaryCardKey.value = cards[0].key
+  }
+}, { immediate: true })
+
 watch([report, selectedEvidenceDocument], ([nextReport, documentId]) => {
   if (!nextReport || !documentId) {
     return
@@ -1137,6 +1230,10 @@ function selectEvidence(documentId: string) {
 
 function selectCommunity(communityId: string) {
   selectedCommunityId.value = communityId
+}
+
+function selectSummaryCard(cardKey: SummaryCardKey) {
+  selectedSummaryCardKey.value = cardKey
 }
 
 function resolveTitle(documentId: string) {
@@ -1319,6 +1416,23 @@ input {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  text-align: left;
+}
+
+.summary-card--interactive {
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.summary-card--active {
+  border-color: color-mix(in srgb, var(--accent-cool) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-cool) 10%, var(--b3-theme-surface));
+}
+
+.summary-card--interactive:hover {
+  transform: translateY(-1px);
 }
 
 .summary-card__label {
@@ -1376,6 +1490,7 @@ input {
 .suggestion-list,
 .community-list,
 .propagation-list,
+.summary-detail-list,
 .evidence-list {
   display: grid;
   gap: 10px;
@@ -1385,6 +1500,7 @@ input {
 .suggestion-item,
 .community-item,
 .propagation-item,
+.summary-detail-item,
 .evidence-item {
   padding: 14px;
   border-radius: 16px;
@@ -1395,6 +1511,7 @@ input {
 .ranking-item__title,
 .suggestion-item__title,
 .propagation-item__title,
+.summary-detail-item__title,
 .evidence-item__source,
 .trend-item button,
 .mini-list__item,
@@ -1412,6 +1529,7 @@ input {
 .ranking-item__title,
 .suggestion-item__title,
 .propagation-item__title,
+.summary-detail-item__title,
 .evidence-item__source {
   font-weight: 600;
 }
@@ -1426,6 +1544,7 @@ input {
 .community-item__header,
 .community-detail__header,
 .propagation-item__header,
+.summary-detail-item__header,
 .path-controls,
 .trend-stats,
 .split-block,
@@ -1505,6 +1624,7 @@ input {
 .community-item__meta,
 .community-item__warning,
 .propagation-item__meta,
+.summary-detail-item__meta,
 .community-detail p,
 .detail-card span {
   margin: 0;

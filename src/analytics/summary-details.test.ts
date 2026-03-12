@@ -1,0 +1,90 @@
+import { describe, expect, it } from 'vitest'
+
+import { buildSummaryDetailSections } from './summary-details'
+
+const now = new Date('2026-03-12T00:00:00Z')
+
+const documents = [
+  { id: 'doc-a', box: 'box-1', path: '/a.sy', hpath: '/Alpha', title: 'Alpha', tags: ['index'], created: '20260301090000', updated: '20260311120000' },
+  { id: 'doc-b', box: 'box-1', path: '/b.sy', hpath: '/Beta', title: 'Beta', tags: ['topic'], created: '20260302090000', updated: '20260310120000' },
+  { id: 'doc-c', box: 'box-1', path: '/c.sy', hpath: '/Gamma', title: 'Gamma', tags: ['archive'], created: '20260303090000', updated: '20260301120000' },
+] as const
+
+const references = [
+  { id: 'ref-1', sourceDocumentId: 'doc-a', sourceBlockId: 'blk-a', targetDocumentId: 'doc-b', targetBlockId: 'blk-b', content: '[[Beta]]', sourceUpdated: '20260311120000' },
+] as const
+
+const report = {
+  summary: {
+    totalDocuments: 3,
+    analyzedDocuments: 3,
+    totalReferences: 1,
+    orphanCount: 1,
+    communityCount: 1,
+    dormantCount: 1,
+    sparseEvidenceCount: 0,
+    propagationCount: 1,
+  },
+  ranking: [
+    { documentId: 'doc-b', title: 'Beta', inboundReferences: 1, distinctSourceDocuments: 1, outboundReferences: 0, lastActiveAt: '20260311120000' },
+  ],
+  communities: [
+    { id: 'community-doc-a', documentIds: ['doc-a', 'doc-b'], size: 2, hubDocumentIds: ['doc-a'], topTags: ['index', 'topic'], notebookIds: ['box-1'], missingTopicPage: false },
+  ],
+  bridgeDocuments: [
+    { documentId: 'doc-a', title: 'Alpha', degree: 1 },
+  ],
+  orphans: [
+    { documentId: 'doc-c', title: 'Gamma', degree: 0, createdAt: '20260303090000', updatedAt: '20260301120000', historicalReferenceCount: 0, lastHistoricalAt: '', hasSparseEvidence: false },
+  ],
+  dormantDocuments: [
+    { documentId: 'doc-c', title: 'Gamma', degree: 0, createdAt: '20260303090000', updatedAt: '20260301120000', historicalReferenceCount: 0, lastHistoricalAt: '', hasSparseEvidence: false, inactivityDays: 11, lastConnectedAt: '' },
+  ],
+  propagationNodes: [
+    { documentId: 'doc-a', title: 'Alpha', degree: 1, score: 2, pathPairCount: 2, focusDocumentCount: 2, communitySpan: 1, bridgeRole: true },
+  ],
+  suggestions: [],
+  evidenceByDocument: {},
+} as const
+
+describe('buildSummaryDetailSections', () => {
+  it('builds active relationship details from current-window participants', () => {
+    const sections = buildSummaryDetailSections({
+      documents: [...documents],
+      references: [...references],
+      report: report as any,
+      now,
+      timeRange: '7d',
+      dormantDays: 30,
+    })
+
+    expect(sections.references.items).toEqual([
+      expect.objectContaining({ documentId: 'doc-a', badge: '1 次参与' }),
+      expect.objectContaining({ documentId: 'doc-b', badge: '1 次参与' }),
+    ])
+  })
+
+  it('builds card detail sections for orphan, dormant, bridge and propagation docs', () => {
+    const sections = buildSummaryDetailSections({
+      documents: [...documents],
+      references: [...references],
+      report: report as any,
+      now,
+      timeRange: 'all',
+      dormantDays: 30,
+    })
+
+    expect(sections.orphans.items).toEqual([
+      expect.objectContaining({ documentId: 'doc-c', title: 'Gamma' }),
+    ])
+    expect(sections.dormant.items).toEqual([
+      expect.objectContaining({ documentId: 'doc-c', title: 'Gamma' }),
+    ])
+    expect(sections.bridges.items).toEqual([
+      expect.objectContaining({ documentId: 'doc-a', title: 'Alpha' }),
+    ])
+    expect(sections.propagation.items).toEqual([
+      expect.objectContaining({ documentId: 'doc-a', badge: '2 分' }),
+    ])
+  })
+})
