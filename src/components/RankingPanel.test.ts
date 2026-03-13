@@ -135,7 +135,7 @@ describe('RankingPanel', () => {
 
     const html = await renderToString(app)
 
-    expect(html).toContain('子文档 1')
+    expect(html).toContain('子文档（去重） 1')
     expect(html).toContain('Child Doc')
     expect(html).toContain('正链')
   })

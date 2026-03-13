@@ -159,7 +159,7 @@
                 @click="toggleLinkGroup(item.documentId, 'child')"
               >
                 <span class="link-association__caret" aria-hidden="true" />
-                子文档 {{ resolveAssociations(item.documentId).childDocuments.length }}
+                子文档（去重） {{ resolveAssociations(item.documentId).childDocuments.length }}
               </button>
               <div
                 v-show="isLinkGroupExpanded(item.documentId, 'child')"
