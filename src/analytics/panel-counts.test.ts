@@ -3,6 +3,45 @@ import { describe, expect, it } from 'vitest'
 import { buildPanelCounts } from './panel-counts'
 
 describe('buildPanelCounts', () => {
+  it('returns counts without evidence panel', () => {
+    const counts = buildPanelCounts({
+      report: {
+        summary: {
+          totalDocuments: 0,
+          analyzedDocuments: 0,
+          totalReferences: 0,
+          orphanCount: 0,
+          communityCount: 0,
+          dormantCount: 0,
+          sparseEvidenceCount: 0,
+          propagationCount: 0,
+        },
+        ranking: [],
+        communities: [],
+        bridgeDocuments: [],
+        orphans: [],
+        dormantDocuments: [],
+        propagationNodes: [],
+        suggestions: [],
+        evidenceByDocument: {},
+      } as any,
+      trends: null,
+      pathChain: [],
+      hasSelectedDocumentDetail: false,
+    })
+
+    expect(Object.keys(counts).sort()).toEqual([
+      'communities',
+      'documentDetail',
+      'orphanBridge',
+      'paths',
+      'propagation',
+      'ranking',
+      'suggestions',
+      'trends',
+    ])
+  })
+
   it('counts visible documents per panel with panel limits', () => {
     const report = {
       summary: {
@@ -88,7 +127,6 @@ describe('buildPanelCounts', () => {
       trends,
       pathChain: ['doc-a', 'doc-b', 'doc-c', 'doc-d'],
       hasSelectedDocumentDetail: true,
-      hasSelectedEvidence: true,
     })
 
     expect(counts.ranking).toBe(12)
@@ -99,6 +137,5 @@ describe('buildPanelCounts', () => {
     expect(counts.paths).toBe(4)
     expect(counts.propagation).toBe(8)
     expect(counts.documentDetail).toBe(1)
-    expect(counts.evidence).toBe(1)
   })
 })

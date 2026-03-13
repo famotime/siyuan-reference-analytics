@@ -1,7 +1,6 @@
 export interface PluginConfig {
   showSummaryCards: boolean
   showRanking: boolean
-  showEvidence: boolean
   showSuggestions: boolean
   showCommunities: boolean
   showOrphanBridge: boolean
@@ -14,7 +13,6 @@ export interface PluginConfig {
 export const DEFAULT_CONFIG: PluginConfig = {
   showSummaryCards: true,
   showRanking: true,
-  showEvidence: true,
   showSuggestions: true,
   showCommunities: true,
   showOrphanBridge: true,

@@ -236,10 +236,95 @@
                   <button
                     class="ghost-button"
                     type="button"
-                    @click="selectEvidence(item.documentId)"
+                    @click="toggleLinkPanel(item.documentId)"
                   >
-                    查看证据
+                    {{ isLinkPanelExpanded(item.documentId) ? '收起关联引用/链接' : '查看关联引用/链接' }}
                   </button>
+                </div>
+                <div
+                  v-if="isLinkPanelExpanded(item.documentId)"
+                  class="link-association"
+                >
+                  <div class="link-association__group">
+                    <button
+                      class="link-association__toggle"
+                      type="button"
+                      @click="toggleLinkGroup(item.documentId, 'outbound')"
+                    >
+                      出链（正链） {{ resolveLinkAssociations(item.documentId).outbound.length }}
+                    </button>
+                    <div
+                      v-show="isLinkGroupExpanded(item.documentId, 'outbound')"
+                      class="link-association__list"
+                    >
+                      <div
+                        v-for="link in resolveLinkAssociations(item.documentId).outbound"
+                        :key="`outbound-${item.documentId}-${link.documentId}`"
+                        class="link-association__item"
+                      >
+                        <button
+                          class="link-association__doc"
+                          :class="{ 'link-association__doc--highlight': !link.isOverlap }"
+                          type="button"
+                          @click="openDocument(link.documentId)"
+                        >
+                          {{ link.title }}
+                        </button>
+                        <button
+                          v-if="!link.isOverlap"
+                          class="ghost-button"
+                          type="button"
+                          :disabled="isSyncing(item.documentId, link.documentId, 'outbound')"
+                          @click="syncAssociation(item.documentId, link.documentId, 'outbound')"
+                        >
+                          {{ isSyncing(item.documentId, link.documentId, 'outbound') ? '同步中...' : '同步' }}
+                        </button>
+                      </div>
+                      <p v-if="resolveLinkAssociations(item.documentId).outbound.length === 0" class="empty-inline">
+                        当前没有出链关联。
+                      </p>
+                    </div>
+                  </div>
+                  <div class="link-association__group">
+                    <button
+                      class="link-association__toggle"
+                      type="button"
+                      @click="toggleLinkGroup(item.documentId, 'inbound')"
+                    >
+                      入链（反链） {{ resolveLinkAssociations(item.documentId).inbound.length }}
+                    </button>
+                    <div
+                      v-show="isLinkGroupExpanded(item.documentId, 'inbound')"
+                      class="link-association__list"
+                    >
+                      <div
+                        v-for="link in resolveLinkAssociations(item.documentId).inbound"
+                        :key="`inbound-${item.documentId}-${link.documentId}`"
+                        class="link-association__item"
+                      >
+                        <button
+                          class="link-association__doc"
+                          :class="{ 'link-association__doc--highlight': !link.isOverlap }"
+                          type="button"
+                          @click="openDocument(link.documentId)"
+                        >
+                          {{ link.title }}
+                        </button>
+                        <button
+                          v-if="!link.isOverlap"
+                          class="ghost-button"
+                          type="button"
+                          :disabled="isSyncing(item.documentId, link.documentId, 'inbound')"
+                          @click="syncAssociation(item.documentId, link.documentId, 'inbound')"
+                        >
+                          {{ isSyncing(item.documentId, link.documentId, 'inbound') ? '同步中...' : '同步' }}
+                        </button>
+                      </div>
+                      <p v-if="resolveLinkAssociations(item.documentId).inbound.length === 0" class="empty-inline">
+                        当前没有入链关联。
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </article>
             </div>
@@ -983,76 +1068,6 @@
           </div>
         </section>
 
-        <section v-if="config.showEvidence" class="panel panel--evidence">
-          <div class="panel-header">
-            <div>
-              <h2>引用证据</h2>
-              <p>解释为什么文档被识别为核心节点或连接节点。</p>
-            </div>
-            <div class="panel-header__actions">
-              <span class="meta-text">{{ panelCounts.evidence }} 篇文档</span>
-              <button
-                class="panel-toggle"
-                type="button"
-                :aria-expanded="isPanelExpanded('evidence')"
-                :aria-label="isPanelExpanded('evidence') ? '折叠详情' : '展开详情'"
-                @click="togglePanel('evidence')"
-              >
-                {{ isPanelExpanded('evidence') ? '折叠' : '展开' }}
-                <span
-                  class="panel-toggle__caret"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
-          </div>
-
-          <div
-            v-show="isPanelExpanded('evidence')"
-            class="panel-body"
-          >
-            <div
-              v-if="selectedEvidenceDocument"
-              class="evidence-header"
-            >
-              <strong>{{ resolveTitle(selectedEvidenceDocument) }}</strong>
-              <button
-                class="ghost-button"
-                type="button"
-                @click="openDocument(selectedEvidenceDocument)"
-              >
-                打开文档
-              </button>
-            </div>
-
-            <div
-              v-if="selectedEvidence.length"
-              class="evidence-list"
-            >
-              <article
-                v-for="item in selectedEvidence"
-                :key="item.id"
-                class="evidence-item"
-              >
-                <button
-                  class="evidence-item__source"
-                  type="button"
-                  @click="openDocument(item.sourceDocumentId)"
-                >
-                  {{ resolveTitle(item.sourceDocumentId) }}
-                </button>
-                <p>{{ item.content || '未读取到块级锚文本' }}</p>
-                <span>{{ formatTimestamp(item.sourceUpdated) }}</span>
-              </article>
-            </div>
-            <div
-              v-else
-              class="empty-state"
-            >
-              选择一篇核心文档后可查看原始引用证据。
-            </div>
-          </div>
-        </section>
       </div>
     </template>
   </div>
@@ -1072,6 +1087,7 @@ import {
   type TimeRange,
 } from '@/analytics/analysis'
 import { createActiveDocumentSync } from '@/analytics/active-document'
+import { buildLinkAssociations } from '@/analytics/link-associations'
 import { buildPanelCounts } from '@/analytics/panel-counts'
 import { DOCUMENT_DETAIL_DESCRIPTION } from '@/analytics/ui-copy'
 import {
@@ -1087,6 +1103,7 @@ import {
   type PanelCollapseState,
 } from '@/analytics/panel-collapse'
 import { loadAnalyticsSnapshot, type AnalyticsSnapshot } from '@/analytics/siyuan-data'
+import { appendBlock, prependBlock } from '@/api'
 
 type PathScope = 'focused' | 'all' | 'community'
 type SnapshotDocument = AnalyticsSnapshot['documents'][number]
@@ -1100,7 +1117,6 @@ const panelKeys = [
   'paths',
   'propagation',
   'document-detail',
-  'evidence',
 ] as const
 type PanelKey = typeof panelKeys[number]
 
@@ -1138,6 +1154,9 @@ const maxPathDepth = ref(6)
 const selectedSummaryCardKey = ref<SummaryCardKey>('documents')
 const panelCollapseState = ref<PanelCollapseState<PanelKey>>(buildPanelCollapseState(panelKeys))
 let disposeActiveDocumentSync: (() => void) | null = null
+const expandedLinkPanels = ref(new Set<string>())
+const expandedLinkGroups = ref(new Set<string>())
+const syncInProgress = ref(new Set<string>())
 
 const timeRangeOptions = computed(() => buildTimeRangeOptions())
 
@@ -1176,6 +1195,7 @@ const filteredDocuments = computed(() => {
 })
 
 const sampleDocumentIds = computed(() => new Set(filteredDocuments.value.map(document => document.id)))
+const sampleDocumentMap = computed(() => new Map(filteredDocuments.value.map(document => [document.id, document])))
 
 const report = computed(() => {
   if (!snapshot.value) {
@@ -1317,13 +1337,6 @@ const pathChain = computed(() => {
   })
 })
 
-const selectedEvidence = computed(() => {
-  if (!report.value || !selectedEvidenceDocument.value) {
-    return []
-  }
-  return report.value.evidenceByDocument[selectedEvidenceDocument.value] ?? []
-})
-
 const selectedDocumentDetail = computed(() => {
   if (!report.value || !selectedEvidenceDocument.value) {
     return null
@@ -1350,6 +1363,23 @@ const selectedDocumentDetail = computed(() => {
   }
 })
 
+const linkAssociationsByDocumentId = computed(() => {
+  const map = new Map<string, ReturnType<typeof buildLinkAssociations>>()
+  if (!snapshot.value) {
+    return map
+  }
+  for (const item of report.value?.ranking ?? []) {
+    map.set(item.documentId, buildLinkAssociations({
+      documentId: item.documentId,
+      references: snapshot.value.references,
+      documentMap: sampleDocumentMap.value,
+      now: analysisNow.value,
+      timeRange: timeRange.value,
+    }))
+  }
+  return map
+})
+
 const panelCounts = computed(() => {
   if (!report.value) {
     return {
@@ -1361,7 +1391,6 @@ const panelCounts = computed(() => {
       paths: 0,
       propagation: 0,
       documentDetail: 0,
-      evidence: 0,
     }
   }
   return buildPanelCounts({
@@ -1369,7 +1398,6 @@ const panelCounts = computed(() => {
     trends: trends.value,
     pathChain: pathChain.value,
     hasSelectedDocumentDetail: Boolean(selectedDocumentDetail.value),
-    hasSelectedEvidence: Boolean(selectedEvidenceDocument.value),
   })
 })
 
@@ -1497,6 +1525,75 @@ function selectCommunity(communityId: string) {
 
 function selectSummaryCard(cardKey: SummaryCardKey) {
   selectedSummaryCardKey.value = cardKey
+}
+
+function resolveLinkAssociations(documentId: string) {
+  return linkAssociationsByDocumentId.value.get(documentId) ?? { outbound: [], inbound: [] }
+}
+
+function toggleLinkPanel(documentId: string) {
+  if (expandedLinkPanels.value.has(documentId)) {
+    expandedLinkPanels.value.delete(documentId)
+    return
+  }
+  expandedLinkPanels.value.add(documentId)
+  selectEvidence(documentId)
+}
+
+function isLinkPanelExpanded(documentId: string) {
+  return expandedLinkPanels.value.has(documentId)
+}
+
+function buildLinkGroupKey(documentId: string, direction: 'outbound' | 'inbound') {
+  return `${documentId}:${direction}`
+}
+
+function toggleLinkGroup(documentId: string, direction: 'outbound' | 'inbound') {
+  const key = buildLinkGroupKey(documentId, direction)
+  if (expandedLinkGroups.value.has(key)) {
+    expandedLinkGroups.value.delete(key)
+    return
+  }
+  expandedLinkGroups.value.add(key)
+}
+
+function isLinkGroupExpanded(documentId: string, direction: 'outbound' | 'inbound') {
+  return expandedLinkGroups.value.has(buildLinkGroupKey(documentId, direction))
+}
+
+function buildDocLinkMarkdown(documentId: string) {
+  const title = resolveTitle(documentId).replace(/"/g, '\\"')
+  return `((${documentId} "${title}"))`
+}
+
+function buildSyncKey(coreDocumentId: string, targetDocumentId: string, direction: 'outbound' | 'inbound') {
+  return `${coreDocumentId}:${targetDocumentId}:${direction}`
+}
+
+function isSyncing(coreDocumentId: string, targetDocumentId: string, direction: 'outbound' | 'inbound') {
+  return syncInProgress.value.has(buildSyncKey(coreDocumentId, targetDocumentId, direction))
+}
+
+async function syncAssociation(coreDocumentId: string, targetDocumentId: string, direction: 'outbound' | 'inbound') {
+  const key = buildSyncKey(coreDocumentId, targetDocumentId, direction)
+  if (syncInProgress.value.has(key)) {
+    return
+  }
+  syncInProgress.value.add(key)
+  try {
+    if (direction === 'outbound') {
+      await prependBlock('markdown', buildDocLinkMarkdown(coreDocumentId), targetDocumentId)
+    } else {
+      await appendBlock('markdown', buildDocLinkMarkdown(targetDocumentId), coreDocumentId)
+    }
+    showMessage('已同步关联链接', 3000, 'info')
+    await refresh()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '同步失败'
+    showMessage(message, 5000, 'error')
+  } finally {
+    syncInProgress.value.delete(key)
+  }
 }
 
 function togglePanel(key: PanelKey) {
@@ -1727,8 +1824,7 @@ input {
   padding: 24px;
 }
 
-.panel--primary,
-.panel--evidence {
+.panel--primary {
   grid-column: span 1;
 }
 
@@ -1749,7 +1845,6 @@ input {
 .panel-header p,
 .meta-text,
 .empty-inline,
-.evidence-item span,
 .ranking-item__meta,
 .trend-item span {
   color: var(--panel-muted);
@@ -1765,8 +1860,7 @@ input {
 .suggestion-list,
 .community-list,
 .propagation-list,
-.summary-detail-list,
-.evidence-list {
+.summary-detail-list {
   display: grid;
   gap: 12px;
 }
@@ -1775,8 +1869,7 @@ input {
 .suggestion-item,
 .community-item,
 .propagation-item,
-.summary-detail-item,
-.evidence-item {
+.summary-detail-item {
   padding: 16px;
   border-radius: 12px;
   background: var(--surface-card);
@@ -1788,8 +1881,7 @@ input {
 .suggestion-item:hover,
 .community-item:hover,
 .propagation-item:hover,
-.summary-detail-item:hover,
-.evidence-item:hover {
+.summary-detail-item:hover {
   background: var(--surface-card-soft);
 }
 
@@ -1797,7 +1889,6 @@ input {
 .suggestion-item__title,
 .propagation-item__title,
 .summary-detail-item__title,
-.evidence-item__source,
 .trend-item button,
 .mini-list__item,
 .community-tag,
@@ -1816,7 +1907,6 @@ input {
 .suggestion-item__title:hover,
 .propagation-item__title:hover,
 .summary-detail-item__title:hover,
-.evidence-item__source:hover,
 .trend-item button:hover {
   color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
 }
@@ -1824,8 +1914,7 @@ input {
 .ranking-item__title,
 .suggestion-item__title,
 .propagation-item__title,
-.summary-detail-item__title,
-.evidence-item__source {
+.summary-detail-item__title {
   font-weight: 600;
   font-size: 15px;
 }
@@ -1843,11 +1932,67 @@ input {
 .summary-detail-item__header,
 .path-controls,
 .trend-stats,
-.split-block,
-.evidence-header {
+.split-block {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.link-association {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--panel-border);
+  background: var(--surface-card-soft);
+  display: grid;
+  gap: 12px;
+}
+
+.link-association__toggle {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--b3-theme-on-background);
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-association__list {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.link-association__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.link-association__doc {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--b3-theme-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.link-association__doc:hover {
+  color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
+}
+
+.link-association__doc--highlight {
+  color: color-mix(in srgb, var(--accent-warm) 75%, var(--b3-theme-on-background));
+  font-weight: 600;
+}
+
+.link-association__doc--highlight:hover {
+  color: color-mix(in srgb, var(--accent-warm) 60%, var(--b3-theme-on-background));
 }
 
 .summary-detail-item__header {
@@ -2118,12 +2263,6 @@ input {
   background: color-mix(in srgb, var(--b3-theme-error) 5%, var(--b3-theme-surface));
 }
 
-.evidence-header {
-  justify-content: space-between;
-  margin-bottom: 16px;
-  align-items: center;
-}
-
 @media (max-width: 980px) {
   .filter-panel,
   .summary-grid,
@@ -2132,8 +2271,7 @@ input {
     grid-template-columns: 1fr;
   }
 
-  .panel--primary,
-  .panel--evidence {
+  .panel--primary {
     grid-column: span 1;
   }
 

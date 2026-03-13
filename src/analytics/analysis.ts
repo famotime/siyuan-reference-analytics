@@ -2,6 +2,14 @@ export type TimeRange = '3d' | '7d' | '30d' | '60d' | '90d' | 'all'
 
 export const TIME_RANGE_OPTIONS: TimeRange[] = ['all', '3d', '7d', '30d', '60d', '90d']
 
+export function filterReferencesByTimeRange(params: {
+  references: ReferenceRecord[]
+  now: Date
+  timeRange: TimeRange
+}): ReferenceRecord[] {
+  return params.references.filter(reference => isReferenceInTimeRange(reference.sourceUpdated ?? '', params.now, params.timeRange))
+}
+
 export interface DocumentRecord {
   id: string
   box: string

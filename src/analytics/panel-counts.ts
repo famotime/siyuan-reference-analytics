@@ -9,7 +9,6 @@ export interface PanelCounts {
   paths: number
   propagation: number
   documentDetail: number
-  evidence: number
 }
 
 const RANKING_LIMIT = 12
@@ -21,7 +20,6 @@ export function buildPanelCounts(params: {
   trends: TrendReport | null
   pathChain: string[]
   hasSelectedDocumentDetail: boolean
-  hasSelectedEvidence: boolean
 }): PanelCounts {
   const suggestions = new Set(params.report.suggestions.map(item => item.documentId))
   const communityDocuments = new Set(params.report.communities.flatMap(community => community.documentIds))
@@ -49,6 +47,5 @@ export function buildPanelCounts(params: {
     paths: params.pathChain.length,
     propagation: Math.min(params.report.propagationNodes.length, PROPAGATION_LIMIT),
     documentDetail: params.hasSelectedDocumentDetail ? 1 : 0,
-    evidence: params.hasSelectedEvidence ? 1 : 0,
   }
 }

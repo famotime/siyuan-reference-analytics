@@ -27,14 +27,6 @@
           </span>
           <input type="checkbox" v-model="config.showRanking" class="b3-switch">
         </label>
-        
-        <label class="setting-item setting-item--nested" v-if="config.showRanking">
-          <span class="setting-item__text">
-            <strong>原始引用证据</strong>
-            <span>选中核心文档后展示具体引用片段</span>
-          </span>
-          <input type="checkbox" v-model="config.showEvidence" class="b3-switch">
-        </label>
       </div>
 
       <label class="setting-item">
