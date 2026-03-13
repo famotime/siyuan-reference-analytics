@@ -80,12 +80,13 @@ describe('buildSummaryDetailSections', () => {
       report: report as any,
       now,
       timeRange: '7d',
+      themeDocumentIds: new Set(['doc-b']),
       dormantDays: 30,
     })
 
     expect(sections.references.items).toEqual([
       expect.objectContaining({ documentId: 'doc-a', badge: '1 次参与' }),
-      expect.objectContaining({ documentId: 'doc-b', badge: '1 次参与' }),
+      expect.objectContaining({ documentId: 'doc-b', badge: '1 次参与', isThemeDocument: true }),
     ])
   })
 
@@ -97,6 +98,7 @@ describe('buildSummaryDetailSections', () => {
       now,
       timeRange: 'all',
       trends: trends as any,
+      themeDocumentIds: new Set(['doc-b']),
       dormantDays: 30,
     })
 
@@ -143,9 +145,8 @@ describe('buildSummaryDetailSections', () => {
     expect(sections.ranking.ranking).toEqual([
       expect.objectContaining({
         documentId: 'doc-b',
-        suggestions: [
-          expect.objectContaining({ label: '升级为主题页', text: '被 2 个文档引用，共 2 次' }),
-        ],
+        isThemeDocument: true,
+        suggestions: [],
       }),
     ])
     expect(sections.trends.kind).toBe('trends')
@@ -167,6 +168,7 @@ describe('buildSummaryDetailSections', () => {
       now,
       timeRange: '7d',
       trends: trends as any,
+      themeDocumentIds: new Set(['doc-b']),
       dormantDays: 30,
     })
 

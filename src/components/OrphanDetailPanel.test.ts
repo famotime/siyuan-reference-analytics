@@ -12,6 +12,7 @@ describe('OrphanDetailPanel', () => {
           {
             documentId: 'doc-a',
             title: 'Alpha',
+            isThemeDocument: true,
             meta: 'meta',
             suggestions: [
               { label: '补齐链接', text: '建议补充至少一条出链或入链。' },
@@ -34,6 +35,7 @@ describe('OrphanDetailPanel', () => {
     expect(html).toContain('孤立排序')
     expect(html).toContain('按更新时间')
     expect(html).toContain('Alpha')
+    expect(html).toContain('主题文档')
     expect(html).toContain('补齐链接')
     expect(html).toContain('建议补充至少一条出链或入链，建议优先连接以下主题文档：')
     expect(html).toContain('AI')

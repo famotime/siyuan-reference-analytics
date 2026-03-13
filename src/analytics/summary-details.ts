@@ -33,6 +33,7 @@ export interface SummaryDetailItem {
   title: string
   meta: string
   badge?: string
+  isThemeDocument?: boolean
   suggestions?: DetailSuggestion[]
 }
 
@@ -42,6 +43,7 @@ export interface DetailSuggestion {
 }
 
 export interface RankingDetailItem extends RankingItem {
+  isThemeDocument?: boolean
   suggestions?: DetailSuggestion[]
 }
 
@@ -153,6 +155,7 @@ export function buildSummaryDetailSections(params: {
   timeRange: TimeRange
   trends?: TrendReport | null
   filters?: AnalyticsFilters
+  themeDocumentIds?: Iterable<string>
   dormantDays: number
 }): Record<SummaryCardKey, SummaryDetailSection> {
   const filteredDocuments = filterDocumentsByTimeRange({
@@ -171,6 +174,7 @@ export function buildSummaryDetailSections(params: {
   })
   const activeCounts = buildActiveDocumentCounts(activeReferences)
   const suggestionMap = buildSuggestionMap(params.report)
+  const themeDocumentIdSet = new Set(params.themeDocumentIds ?? [])
 
   return {
     documents: {
@@ -184,6 +188,7 @@ export function buildSummaryDetailSections(params: {
           documentId: document.id,
           title: resolveTitle(document),
           meta: `${document.hpath || document.path} · 最近更新 ${formatCompactDate(document.updated)}`,
+          isThemeDocument: themeDocumentIdSet.has(document.id),
         })),
     },
     references: {
@@ -202,6 +207,7 @@ export function buildSummaryDetailSections(params: {
             title: resolveTitle(document),
             meta: `入链 ${counts.inbound} / 出链 ${counts.outbound}`,
             badge: `${counts.inbound + counts.outbound} 次参与`,
+            isThemeDocument: themeDocumentIdSet.has(documentId),
           }
         })
         .filter((item): item is SummaryDetailItem => item !== null)
@@ -212,10 +218,14 @@ export function buildSummaryDetailSections(params: {
       title: '核心文档详情',
       description: '被引用频次最高的核心文档。',
       kind: 'ranking',
-      ranking: params.report.ranking.map(item => ({
-        ...item,
-        suggestions: resolveSuggestions(suggestionMap, item.documentId, 'promote-hub'),
-      })),
+      ranking: params.report.ranking.map((item) => {
+        const isThemeDocument = themeDocumentIdSet.has(item.documentId)
+        return {
+          ...item,
+          isThemeDocument,
+          suggestions: isThemeDocument ? [] : resolveSuggestions(suggestionMap, item.documentId, 'promote-hub'),
+        }
+      }),
     },
     trends: {
       key: 'trends',
@@ -244,6 +254,7 @@ export function buildSummaryDetailSections(params: {
           title: documentMap.get(documentId)?.title ?? documentId,
           meta: `社区标签：${community.topTags.join(' / ') || '未提取'} · 社区规模 ${community.size}`,
           badge: community.missingTopicPage ? '缺主题页' : undefined,
+          isThemeDocument: themeDocumentIdSet.has(documentId),
         }))
       }),
     },
@@ -256,6 +267,7 @@ export function buildSummaryDetailSections(params: {
         documentId: item.documentId,
         title: item.title,
         meta: `最近更新 ${formatCompactDate(item.updatedAt)} · 创建于 ${formatCompactDate(item.createdAt)}`,
+        isThemeDocument: themeDocumentIdSet.has(item.documentId),
         suggestions: resolveSuggestions(suggestionMap, item.documentId, 'repair-orphan'),
       })),
     },
@@ -269,6 +281,7 @@ export function buildSummaryDetailSections(params: {
         title: item.title,
         meta: `${item.inactivityDays} 天未活跃 · 最近连接 ${formatCompactDate(item.lastConnectedAt || item.updatedAt)}`,
         badge: item.hasSparseEvidence ? `${item.historicalReferenceCount} 条历史连接` : undefined,
+        isThemeDocument: themeDocumentIdSet.has(item.documentId),
         suggestions: resolveSuggestions(suggestionMap, item.documentId, 'archive-dormant'),
       })),
     },
@@ -281,6 +294,7 @@ export function buildSummaryDetailSections(params: {
         documentId: item.documentId,
         title: item.title,
         meta: `连接度 ${item.degree}`,
+        isThemeDocument: themeDocumentIdSet.has(item.documentId),
         suggestions: resolveSuggestions(suggestionMap, item.documentId, 'maintain-bridge'),
       })),
     },
@@ -294,6 +308,7 @@ export function buildSummaryDetailSections(params: {
         title: item.title,
         meta: `覆盖 ${item.focusDocumentCount} 个焦点文档 · 社区跨度 ${item.communitySpan || 1}`,
         badge: `${item.score} 分`,
+        isThemeDocument: themeDocumentIdSet.has(item.documentId),
         suggestions: [buildPropagationSuggestion(item)],
       })),
     },

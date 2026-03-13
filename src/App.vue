@@ -168,13 +168,12 @@
                 class="summary-detail-item"
               >
                 <div class="summary-detail-item__header">
-                  <button
-                    class="summary-detail-item__title"
-                    type="button"
-                    @click="openDocument(item.documentId)"
-                  >
-                    {{ item.title }}
-                  </button>
+                  <DocumentTitle
+                    :document-id="item.documentId"
+                    :title="item.title"
+                    :open-document="openDocument"
+                    :is-theme-document="item.isThemeDocument"
+                  />
                   <span
                     v-if="item.badge"
                     class="badge"
@@ -206,13 +205,12 @@
                 class="summary-detail-item"
               >
                 <div class="summary-detail-item__header">
-                  <button
-                    class="summary-detail-item__title"
-                    type="button"
-                    @click="openDocument(item.documentId)"
-                  >
-                    {{ item.title }}
-                  </button>
+                  <DocumentTitle
+                    :document-id="item.documentId"
+                    :title="item.title"
+                    :open-document="openDocument"
+                    :is-theme-document="item.isThemeDocument"
+                  />
                   <span
                     v-if="item.badge"
                     class="badge"
@@ -356,12 +354,13 @@
                     :key="item.documentId"
                     class="trend-item"
                   >
-                    <button
-                      type="button"
-                      @click="openDocument(item.documentId)"
-                    >
-                      {{ item.title }}
-                    </button>
+                    <DocumentTitle
+                      variant="compact"
+                      :document-id="item.documentId"
+                      :title="item.title"
+                      :open-document="openDocument"
+                      :is-theme-document="themeDocumentIds.has(item.documentId)"
+                    />
                     <span>{{ formatDelta(item.delta) }} ({{ item.currentReferences }}/{{ item.previousReferences }})</span>
                   </article>
                 </div>
@@ -383,12 +382,13 @@
                     :key="item.documentId"
                     class="trend-item"
                   >
-                    <button
-                      type="button"
-                      @click="openDocument(item.documentId)"
-                    >
-                      {{ item.title }}
-                    </button>
+                    <DocumentTitle
+                      variant="compact"
+                      :document-id="item.documentId"
+                      :title="item.title"
+                      :open-document="openDocument"
+                      :is-theme-document="themeDocumentIds.has(item.documentId)"
+                    />
                     <span>{{ item.delta }} ({{ item.currentReferences }}/{{ item.previousReferences }})</span>
                   </article>
                 </div>
@@ -496,6 +496,7 @@ import { computed, watch } from 'vue'
 import { openTab, showMessage, type Plugin } from 'siyuan'
 
 import DormantDetailPanel from '@/components/DormantDetailPanel.vue'
+import DocumentTitle from '@/components/DocumentTitle.vue'
 import OrphanDetailPanel from '@/components/OrphanDetailPanel.vue'
 import RankingPanel from '@/components/RankingPanel.vue'
 import SuggestionCallout from '@/components/SuggestionCallout.vue'
@@ -548,6 +549,7 @@ const {
   summaryCards,
   selectedSummaryDetail,
   selectedSummaryCount,
+  themeDocumentIds,
   orphanDetailItems,
   pathOptions,
   pathChain,
@@ -863,7 +865,6 @@ input {
 }
 
 .propagation-item__title,
-.summary-detail-item__title,
 .trend-item button,
 .mini-list__item,
 .community-tag,
@@ -879,13 +880,11 @@ input {
 }
 
 .propagation-item__title:hover,
-.summary-detail-item__title:hover,
 .trend-item button:hover {
   color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
 }
 
-.propagation-item__title,
-.summary-detail-item__title {
+.propagation-item__title {
   font-weight: 600;
   font-size: 15px;
 }

@@ -23,13 +23,12 @@
         class="summary-detail-item"
       >
         <div class="summary-detail-item__header">
-          <button
-            class="summary-detail-item__title"
-            type="button"
-            @click="openDocument(item.documentId)"
-          >
-            {{ item.title }}
-          </button>
+          <DocumentTitle
+            :document-id="item.documentId"
+            :title="item.title"
+            :open-document="openDocument"
+            :is-theme-document="item.isThemeDocument"
+          />
           <span
             v-if="item.badge"
             class="badge"
@@ -74,6 +73,7 @@
 import type { OrphanSort } from '@/analytics/analysis'
 import type { DetailSuggestion, SummaryDetailItem } from '@/analytics/summary-details'
 import type { ThemeDocumentMatch } from '@/analytics/theme-documents'
+import DocumentTitle from './DocumentTitle.vue'
 import SuggestionCallout from './SuggestionCallout.vue'
 
 const props = defineProps<{
@@ -138,23 +138,6 @@ function buildSuggestionCalloutItems(item: SummaryDetailItem & { themeSuggestion
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.summary-detail-item__title {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--b3-theme-primary);
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-  font-size: 15px;
-  transition: color 0.15s;
-}
-
-.summary-detail-item__title:hover {
-  color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
 }
 
 .summary-detail-item__meta {

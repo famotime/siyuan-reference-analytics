@@ -37,13 +37,12 @@
           :key="item.documentId"
           class="ranking-item"
         >
-          <button
-            class="ranking-item__title"
-            type="button"
-            @click="openDocument(item.documentId)"
-          >
-            {{ resolveTitle(item.documentId) }}
-          </button>
+          <DocumentTitle
+            :document-id="item.documentId"
+            :title="resolveTitle(item.documentId)"
+            :open-document="openDocument"
+            :is-theme-document="item.isThemeDocument"
+          />
           <div class="ranking-item__meta">
             <span>{{ item.inboundReferences }} 次引用</span>
             <span>{{ item.distinctSourceDocuments }} 个来源文档</span>
@@ -214,6 +213,7 @@
 import type { RankingDetailItem } from '@/analytics/summary-details'
 import type { LinkAssociations } from '@/analytics/link-associations'
 import type { LinkDirection } from '@/analytics/link-sync'
+import DocumentTitle from './DocumentTitle.vue'
 import SuggestionCallout from './SuggestionCallout.vue'
 
 const props = withDefaults(defineProps<{
@@ -347,23 +347,6 @@ function resolveAssociations(documentId: string): LinkAssociations {
 
 .ranking-item:hover {
   background: var(--surface-card-soft);
-}
-
-.ranking-item__title {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--b3-theme-primary);
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-  transition: color 0.15s;
-  font-weight: 600;
-  font-size: 15px;
-}
-
-.ranking-item__title:hover {
-  color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
 }
 
 .ranking-item__meta,

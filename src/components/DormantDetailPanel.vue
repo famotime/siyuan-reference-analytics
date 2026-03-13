@@ -23,13 +23,12 @@
         class="summary-detail-item"
       >
         <div class="summary-detail-item__header">
-          <button
-            class="summary-detail-item__title"
-            type="button"
-            @click="openDocument(item.documentId)"
-          >
-            {{ item.title }}
-          </button>
+          <DocumentTitle
+            :document-id="item.documentId"
+            :title="item.title"
+            :open-document="openDocument"
+            :is-theme-document="item.isThemeDocument"
+          />
           <span
             v-if="item.badge"
             class="badge"
@@ -54,6 +53,7 @@
 
 <script setup lang="ts">
 import type { SummaryDetailItem } from '@/analytics/summary-details'
+import DocumentTitle from './DocumentTitle.vue'
 import SuggestionCallout from './SuggestionCallout.vue'
 
 const props = defineProps<{

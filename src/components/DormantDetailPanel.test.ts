@@ -12,6 +12,7 @@ describe('DormantDetailPanel', () => {
           {
             documentId: 'doc-a',
             title: 'Alpha',
+            isThemeDocument: true,
             meta: 'meta',
             suggestions: [
               { label: '归档沉没', text: '建议归档或补齐索引入口。' },
@@ -29,6 +30,7 @@ describe('DormantDetailPanel', () => {
     expect(html).toContain('沉没阈值')
     expect(html).toContain('30 天')
     expect(html).toContain('Alpha')
+    expect(html).toContain('主题文档')
     expect(html).toContain('归档沉没')
     expect(html).toContain('建议归档或补齐索引入口。')
   })

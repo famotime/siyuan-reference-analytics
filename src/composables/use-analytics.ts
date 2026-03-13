@@ -133,6 +133,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     documents: snapshot.value?.documents ?? [],
     config: params.config,
   }))
+  const themeDocumentIds = computed(() => new Set(themeDocuments.value.map(document => document.documentId)))
   const themeOptions = computed(() => buildThemeOptions(themeDocuments.value))
 
   const filteredDocuments = computed(() => {
@@ -248,6 +249,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
       timeRange: timeRange.value,
       trends: trends.value,
       filters: filters.value,
+      themeDocumentIds: themeDocumentIds.value,
       dormantDays: dormantDays.value,
     })
   })
@@ -736,6 +738,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     filteredDocuments,
     sampleDocumentIds,
     sampleDocumentMap,
+    themeDocumentIds,
     report,
     trendDays,
     trendLabel,

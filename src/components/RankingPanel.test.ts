@@ -8,6 +8,7 @@ const baseRanking = [
   {
     documentId: 'doc-a',
     title: 'Alpha',
+    isThemeDocument: true,
     inboundReferences: 1,
     distinctSourceDocuments: 1,
     outboundReferences: 0,
@@ -166,5 +167,6 @@ describe('RankingPanel', () => {
     expect(html).toContain('建议')
     expect(html).toContain('升级为主题页')
     expect(html).toContain('建议补齐总览结构并承接更多入链。')
+    expect(html).toContain('主题文档')
   })
 })
