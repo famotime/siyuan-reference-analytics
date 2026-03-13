@@ -182,160 +182,24 @@
       </section>
 
       <div class="layout-grid">
-        <section v-if="config.showRanking" class="panel panel--primary">
-          <div class="panel-header">
-            <div>
-              <h2>核心文档排行</h2>
-              <p>按文档级被引用次数、引用文档数和最近活跃时间排序。</p>
-            </div>
-            <div class="panel-header__actions">
-              <span class="meta-text">{{ panelCounts.ranking }} 篇文档</span>
-              <span class="meta-text">最近刷新 {{ snapshotLabel }}</span>
-              <button
-                class="panel-toggle"
-                type="button"
-                :aria-expanded="isPanelExpanded('ranking')"
-                :aria-label="isPanelExpanded('ranking') ? '折叠详情' : '展开详情'"
-                @click="togglePanel('ranking')"
-              >
-                {{ isPanelExpanded('ranking') ? '折叠' : '展开' }}
-                <span
-                  class="panel-toggle__caret"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
-          </div>
-
-          <div
-            v-show="isPanelExpanded('ranking')"
-            class="panel-body"
-          >
-            <div
-              v-if="report.ranking.length"
-              class="ranking-list"
-            >
-              <article
-                v-for="item in report.ranking.slice(0, 12)"
-                :key="item.documentId"
-                class="ranking-item"
-              >
-                <button
-                  class="ranking-item__title"
-                  type="button"
-                  @click="openDocument(item.documentId)"
-                >
-                  {{ resolveTitle(item.documentId) }}
-                </button>
-                <div class="ranking-item__meta">
-                  <span>{{ item.inboundReferences }} 次引用</span>
-                  <span>{{ item.distinctSourceDocuments }} 个来源文档</span>
-                  <span>{{ formatTimestamp(item.lastActiveAt) }}</span>
-                </div>
-                <div class="ranking-item__actions">
-                  <button
-                    class="ghost-button"
-                    type="button"
-                    @click="toggleLinkPanel(item.documentId)"
-                  >
-                    {{ isLinkPanelExpanded(item.documentId) ? '收起关联引用/链接' : '查看关联引用/链接' }}
-                  </button>
-                </div>
-                <div
-                  v-if="isLinkPanelExpanded(item.documentId)"
-                  class="link-association"
-                >
-                  <div class="link-association__group">
-                    <button
-                      class="link-association__toggle"
-                      type="button"
-                      @click="toggleLinkGroup(item.documentId, 'outbound')"
-                    >
-                      出链（正链） {{ resolveLinkAssociations(item.documentId).outbound.length }}
-                    </button>
-                    <div
-                      v-show="isLinkGroupExpanded(item.documentId, 'outbound')"
-                      class="link-association__list"
-                    >
-                      <div
-                        v-for="link in resolveLinkAssociations(item.documentId).outbound"
-                        :key="`outbound-${item.documentId}-${link.documentId}`"
-                        class="link-association__item"
-                      >
-                        <button
-                          class="link-association__doc"
-                          :class="{ 'link-association__doc--highlight': !link.isOverlap }"
-                          type="button"
-                          @click="openDocument(link.documentId)"
-                        >
-                          {{ link.title }}
-                        </button>
-                        <button
-                          v-if="!link.isOverlap"
-                          class="ghost-button"
-                          type="button"
-                          :disabled="isSyncing(item.documentId, link.documentId, 'outbound')"
-                          @click="syncAssociation(item.documentId, link.documentId, 'outbound')"
-                        >
-                          {{ isSyncing(item.documentId, link.documentId, 'outbound') ? '同步中...' : '同步' }}
-                        </button>
-                      </div>
-                      <p v-if="resolveLinkAssociations(item.documentId).outbound.length === 0" class="empty-inline">
-                        当前没有出链关联。
-                      </p>
-                    </div>
-                  </div>
-                  <div class="link-association__group">
-                    <button
-                      class="link-association__toggle"
-                      type="button"
-                      @click="toggleLinkGroup(item.documentId, 'inbound')"
-                    >
-                      入链（反链） {{ resolveLinkAssociations(item.documentId).inbound.length }}
-                    </button>
-                    <div
-                      v-show="isLinkGroupExpanded(item.documentId, 'inbound')"
-                      class="link-association__list"
-                    >
-                      <div
-                        v-for="link in resolveLinkAssociations(item.documentId).inbound"
-                        :key="`inbound-${item.documentId}-${link.documentId}`"
-                        class="link-association__item"
-                      >
-                        <button
-                          class="link-association__doc"
-                          :class="{ 'link-association__doc--highlight': !link.isOverlap }"
-                          type="button"
-                          @click="openDocument(link.documentId)"
-                        >
-                          {{ link.title }}
-                        </button>
-                        <button
-                          v-if="!link.isOverlap"
-                          class="ghost-button"
-                          type="button"
-                          :disabled="isSyncing(item.documentId, link.documentId, 'inbound')"
-                          @click="syncAssociation(item.documentId, link.documentId, 'inbound')"
-                        >
-                          {{ isSyncing(item.documentId, link.documentId, 'inbound') ? '同步中...' : '同步' }}
-                        </button>
-                      </div>
-                      <p v-if="resolveLinkAssociations(item.documentId).inbound.length === 0" class="empty-inline">
-                        当前没有入链关联。
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            </div>
-            <div
-              v-else
-              class="empty-state"
-            >
-              当前筛选条件下没有命中的文档级引用关系。
-            </div>
-          </div>
-        </section>
+        <RankingPanel
+          v-if="config.showRanking"
+          :ranking="report.ranking"
+          :panel-count="panelCounts.ranking"
+          :snapshot-label="snapshotLabel"
+          :is-expanded="isPanelExpanded('ranking')"
+          :on-toggle-panel="() => togglePanel('ranking')"
+          :resolve-title="resolveTitle"
+          :format-timestamp="formatTimestamp"
+          :open-document="openDocument"
+          :toggle-link-panel="toggleLinkPanel"
+          :is-link-panel-expanded="isLinkPanelExpanded"
+          :resolve-link-associations="resolveLinkAssociations"
+          :toggle-link-group="toggleLinkGroup"
+          :is-link-group-expanded="isLinkGroupExpanded"
+          :is-syncing="isSyncing"
+          :sync-association="syncAssociation"
+        />
 
         <section v-if="config.showSuggestions" class="panel">
           <div class="panel-header">
@@ -374,7 +238,7 @@
                 :key="`${item.type}-${item.documentId}`"
                 class="suggestion-item"
               >
-                <span class="badge">{{ suggestionTypeLabel[item.type] }}</span>
+                <span class="badge">{{ SUGGESTION_TYPE_LABELS[item.type] }}</span>
                 <button
                   class="suggestion-item__title"
                   type="button"
@@ -1074,52 +938,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { openTab, showMessage, type Plugin } from 'siyuan'
 
-import {
-  analyzeReferenceGraph,
-  analyzeTrends,
-  findReferencePath,
-  filterDocumentsByTimeRange,
-  type AnalyticsFilters,
-  type OrphanSort,
-  type TimeRange,
-} from '@/analytics/analysis'
-import { createActiveDocumentSync } from '@/analytics/active-document'
-import { buildLinkAssociations } from '@/analytics/link-associations'
-import { buildPanelCounts } from '@/analytics/panel-counts'
-import { DOCUMENT_DETAIL_DESCRIPTION } from '@/analytics/ui-copy'
-import {
-  buildSummaryCards,
-  buildSummaryDetailSections,
-  type SummaryCardItem,
-  type SummaryCardKey,
-} from '@/analytics/summary-details'
-import { buildTimeRangeOptions } from '@/analytics/time-range'
-import {
-  buildPanelCollapseState,
-  togglePanelCollapse,
-  type PanelCollapseState,
-} from '@/analytics/panel-collapse'
-import { loadAnalyticsSnapshot, type AnalyticsSnapshot } from '@/analytics/siyuan-data'
+import { DOCUMENT_DETAIL_DESCRIPTION, SUGGESTION_TYPE_LABELS } from '@/analytics/ui-copy'
+import RankingPanel from '@/components/RankingPanel.vue'
+import { useAnalyticsState } from '@/composables/use-analytics'
 import { appendBlock, prependBlock } from '@/api'
-
-type PathScope = 'focused' | 'all' | 'community'
-type SnapshotDocument = AnalyticsSnapshot['documents'][number]
-const panelKeys = [
-  'summary-detail',
-  'ranking',
-  'suggestions',
-  'communities',
-  'orphan-bridge',
-  'trends',
-  'paths',
-  'propagation',
-  'document-detail',
-] as const
-type PanelKey = typeof panelKeys[number]
-
 import type { PluginConfig } from '@/types/config'
 
 const props = defineProps<{
@@ -1127,524 +951,62 @@ const props = defineProps<{
   config: PluginConfig
 }>()
 
-const suggestionTypeLabel = {
-  'promote-hub': '升级为主题页',
-  'repair-orphan': '补齐链接',
-  'maintain-bridge': '重点维护',
-  'archive-dormant': '归档沉没',
-} as const
-
-const loading = ref(false)
-const errorMessage = ref('')
-const snapshot = ref<AnalyticsSnapshot | null>(null)
-const timeRange = ref<TimeRange>('7d')
-const selectedNotebook = ref('')
-const selectedTag = ref('')
-const keyword = ref('')
-const orphanSort = ref<OrphanSort>('updated-desc')
-const dormantDays = ref(30)
-const analysisNow = ref(new Date())
-const fromDocumentId = ref('')
-const toDocumentId = ref('')
-const selectedEvidenceDocument = ref('')
-const activeDocumentId = ref('')
-const selectedCommunityId = ref('')
-const pathScope = ref<PathScope>('focused')
-const maxPathDepth = ref(6)
-const selectedSummaryCardKey = ref<SummaryCardKey>('documents')
-const panelCollapseState = ref<PanelCollapseState<PanelKey>>(buildPanelCollapseState(panelKeys))
-let disposeActiveDocumentSync: (() => void) | null = null
-const expandedLinkPanels = ref(new Set<string>())
-const expandedLinkGroups = ref(new Set<string>())
-const syncInProgress = ref(new Set<string>())
-
-const timeRangeOptions = computed(() => buildTimeRangeOptions())
-
-const filters = computed<AnalyticsFilters>(() => ({
-  notebook: selectedNotebook.value || undefined,
-  tag: selectedTag.value || undefined,
-  keyword: keyword.value || undefined,
-}))
-
-const notebookOptions = computed(() => snapshot.value?.notebooks ?? [])
-const tagOptions = computed(() => {
-  const tagSet = new Set<string>()
-  for (const document of snapshot.value?.documents ?? []) {
-    for (const tag of normalizeTags(document.tags)) {
-      tagSet.add(tag)
-    }
-  }
-  return [...tagSet].sort((left, right) => left.localeCompare(right, 'zh-CN'))
+const analytics = useAnalyticsState({
+  plugin: props.plugin,
+  openTab,
+  showMessage,
+  appendBlock,
+  prependBlock,
 })
 
-const documentMap = computed(() => {
-  return new Map((snapshot.value?.documents ?? []).map(document => [document.id, document]))
-})
-
-const filteredDocuments = computed(() => {
-  if (!snapshot.value) {
-    return []
-  }
-  return filterDocumentsByTimeRange({
-    documents: snapshot.value.documents,
-    references: snapshot.value.references,
-    now: analysisNow.value,
-    timeRange: timeRange.value,
-    filters: filters.value,
-  })
-})
-
-const sampleDocumentIds = computed(() => new Set(filteredDocuments.value.map(document => document.id)))
-const sampleDocumentMap = computed(() => new Map(filteredDocuments.value.map(document => [document.id, document])))
-
-const report = computed(() => {
-  if (!snapshot.value) {
-    return null
-  }
-  return analyzeReferenceGraph({
-    documents: snapshot.value.documents,
-    references: snapshot.value.references,
-    now: analysisNow.value,
-    timeRange: timeRange.value,
-    filters: filters.value,
-    orphanSort: orphanSort.value,
-    dormantDays: dormantDays.value,
-  })
-})
-
-const trendDays = computed(() => {
-  if (timeRange.value === 'all') {
-    return 30
-  }
-  return Number.parseInt(timeRange.value, 10)
-})
-
-const trendLabel = computed(() => `对比近 ${trendDays.value} 天与前一窗口`)
-
-const trends = computed(() => {
-  if (!snapshot.value) {
-    return null
-  }
-  return analyzeTrends({
-    documents: snapshot.value.documents,
-    references: snapshot.value.references,
-    now: analysisNow.value,
-    days: trendDays.value,
-    timeRange: timeRange.value,
-    filters: filters.value,
-  })
-})
-
-const communityTrendMap = computed(() => {
-  return new Map((trends.value?.communityTrends ?? []).map(item => [item.communityId, item]))
-})
-
-const selectedCommunity = computed(() => {
-  if (!report.value?.communities.length) {
-    return null
-  }
-  return report.value.communities.find(community => community.id === selectedCommunityId.value) ?? report.value.communities[0]
-})
-
-const selectedCommunityTrend = computed(() => {
-  if (!selectedCommunity.value) {
-    return null
-  }
-  return communityTrendMap.value.get(selectedCommunity.value.id) ?? null
-})
-
-const summaryCards = computed<SummaryCardItem[]>(() => {
-  if (!report.value || !trends.value) {
-    return []
-  }
-  return buildSummaryCards({
-    report: report.value,
-    dormantDays: dormantDays.value,
-    documentCount: filteredDocuments.value.length,
-  })
-})
-
-const summaryDetailSections = computed(() => {
-  if (!snapshot.value || !report.value) {
-    return null
-  }
-
-  return buildSummaryDetailSections({
-    documents: snapshot.value.documents,
-    references: snapshot.value.references,
-    report: report.value,
-    now: analysisNow.value,
-    timeRange: timeRange.value,
-    filters: filters.value,
-    dormantDays: dormantDays.value,
-  })
-})
-
-const selectedSummaryDetail = computed(() => {
-  return summaryDetailSections.value?.[selectedSummaryCardKey.value] ?? null
-})
-
-const pathOptions = computed(() => {
-  const ids = new Set<string>()
-
-  if (pathScope.value === 'all') {
-    for (const document of filteredDocuments.value) {
-      ids.add(document.id)
-    }
-  } else if (pathScope.value === 'community') {
-    for (const documentId of selectedCommunity.value?.documentIds ?? []) {
-      ids.add(documentId)
-    }
-  } else {
-    for (const item of report.value?.ranking ?? []) {
-      ids.add(item.documentId)
-    }
-    for (const item of report.value?.bridgeDocuments ?? []) {
-      ids.add(item.documentId)
-    }
-    for (const item of report.value?.propagationNodes ?? []) {
-      ids.add(item.documentId)
-    }
-  }
-
-  return [...ids]
-    .map((id) => {
-      const document = documentMap.value.get(id)
-      return document
-        ? {
-            id,
-            title: resolveTitle(id),
-          }
-        : null
-    })
-    .filter((item): item is { id: string, title: string } => item !== null)
-    .sort((left, right) => left.title.localeCompare(right.title, 'zh-CN'))
-})
-
-const pathChain = computed(() => {
-  if (!snapshot.value || !fromDocumentId.value || !toDocumentId.value || fromDocumentId.value === toDocumentId.value) {
-    return []
-  }
-  return findReferencePath({
-    documents: snapshot.value.documents,
-    references: snapshot.value.references,
-    fromDocumentId: fromDocumentId.value,
-    toDocumentId: toDocumentId.value,
-    maxDepth: maxPathDepth.value,
-    filters: filters.value,
-    now: analysisNow.value,
-    timeRange: timeRange.value,
-  })
-})
-
-const selectedDocumentDetail = computed(() => {
-  if (!report.value || !selectedEvidenceDocument.value) {
-    return null
-  }
-
-  const orphan = report.value.orphans.find(item => item.documentId === selectedEvidenceDocument.value) ?? null
-  const dormant = report.value.dormantDocuments.find(item => item.documentId === selectedEvidenceDocument.value) ?? null
-  const bridge = report.value.bridgeDocuments.find(item => item.documentId === selectedEvidenceDocument.value) ?? null
-  const propagation = report.value.propagationNodes.find(item => item.documentId === selectedEvidenceDocument.value) ?? null
-  const community = report.value.communities.find(item => item.documentIds.includes(selectedEvidenceDocument.value)) ?? null
-  const trend = [
-    ...(trends.value?.risingDocuments ?? []),
-    ...(trends.value?.fallingDocuments ?? []),
-  ].find(item => item.documentId === selectedEvidenceDocument.value) ?? null
-
-  return {
-    documentId: selectedEvidenceDocument.value,
-    orphan,
-    dormant,
-    bridge,
-    propagation,
-    community,
-    trend,
-  }
-})
-
-const linkAssociationsByDocumentId = computed(() => {
-  const map = new Map<string, ReturnType<typeof buildLinkAssociations>>()
-  if (!snapshot.value) {
-    return map
-  }
-  for (const item of report.value?.ranking ?? []) {
-    map.set(item.documentId, buildLinkAssociations({
-      documentId: item.documentId,
-      references: snapshot.value.references,
-      documentMap: sampleDocumentMap.value,
-      now: analysisNow.value,
-      timeRange: timeRange.value,
-    }))
-  }
-  return map
-})
-
-const panelCounts = computed(() => {
-  if (!report.value) {
-    return {
-      ranking: 0,
-      suggestions: 0,
-      communities: 0,
-      orphanBridge: 0,
-      trends: 0,
-      paths: 0,
-      propagation: 0,
-      documentDetail: 0,
-    }
-  }
-  return buildPanelCounts({
-    report: report.value,
-    trends: trends.value,
-    pathChain: pathChain.value,
-    hasSelectedDocumentDetail: Boolean(selectedDocumentDetail.value),
-  })
-})
-
-const snapshotLabel = computed(() => {
-  if (!snapshot.value) {
-    return '--'
-  }
-  return new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(snapshot.value.fetchedAt))
-})
-
-watch(pathOptions, (options) => {
-  if (options.length === 0) {
-    fromDocumentId.value = ''
-    toDocumentId.value = ''
-    return
-  }
-  if (!options.some(option => option.id === fromDocumentId.value)) {
-    fromDocumentId.value = options[0]?.id ?? ''
-  }
-  if (!options.some(option => option.id === toDocumentId.value) || toDocumentId.value === fromDocumentId.value) {
-    toDocumentId.value = options.find(option => option.id !== fromDocumentId.value)?.id ?? ''
-  }
-}, { immediate: true })
-
-watch(report, (nextReport) => {
-  if (!nextReport) {
-    selectedEvidenceDocument.value = ''
-    selectedCommunityId.value = ''
-    return
-  }
-
-  const preferredDocumentId = nextReport.ranking[0]?.documentId
-    ?? nextReport.orphans[0]?.documentId
-    ?? nextReport.bridgeDocuments[0]?.documentId
-    ?? ''
-
-  if (!preferredDocumentId) {
-    selectedEvidenceDocument.value = ''
-  } else if (!sampleDocumentIds.value.has(selectedEvidenceDocument.value)) {
-    selectedEvidenceDocument.value = preferredDocumentId
-  }
-
-  if (!nextReport.communities.some(item => item.id === selectedCommunityId.value)) {
-    selectedCommunityId.value = nextReport.communities[0]?.id ?? ''
-  }
-}, { immediate: true })
-
-watch(summaryCards, (cards) => {
-  if (cards.length === 0) {
-    return
-  }
-  if (!cards.some(card => card.key === selectedSummaryCardKey.value)) {
-    selectedSummaryCardKey.value = cards[0].key
-  }
-}, { immediate: true })
-
-watch([activeDocumentId, sampleDocumentIds], ([documentId, documentIds]) => {
-  if (documentId && documentIds.has(documentId)) {
-    selectedEvidenceDocument.value = documentId
-    return
-  }
-  if (selectedEvidenceDocument.value && !documentIds.has(selectedEvidenceDocument.value)) {
-    selectedEvidenceDocument.value = ''
-  }
-})
-
-watch([report, selectedEvidenceDocument], ([nextReport, documentId]) => {
-  if (!nextReport || !documentId) {
-    return
-  }
-  const community = nextReport.communities.find(item => item.documentIds.includes(documentId))
-  if (community) {
-    selectedCommunityId.value = community.id
-  }
-}, { immediate: true })
-
-watch(pathScope, (scope) => {
-  if (scope === 'community' && !selectedCommunity.value) {
-    pathScope.value = 'focused'
-  }
-})
-
-onMounted(() => {
-  disposeActiveDocumentSync = createActiveDocumentSync({
-    eventBus: props.plugin.eventBus,
-    onDocumentId: (documentId) => {
-      activeDocumentId.value = documentId
-    },
-  })
-  refresh()
-})
-
-onBeforeUnmount(() => {
-  disposeActiveDocumentSync?.()
-  disposeActiveDocumentSync = null
-})
-
-async function refresh() {
-  loading.value = true
-  errorMessage.value = ''
-  analysisNow.value = new Date()
-  try {
-    snapshot.value = await loadAnalyticsSnapshot()
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '读取思源数据失败'
-    errorMessage.value = message
-    showMessage(message, 5000, 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-function selectEvidence(documentId: string) {
-  selectedEvidenceDocument.value = documentId
-}
-
-function selectCommunity(communityId: string) {
-  selectedCommunityId.value = communityId
-}
-
-function selectSummaryCard(cardKey: SummaryCardKey) {
-  selectedSummaryCardKey.value = cardKey
-}
-
-function resolveLinkAssociations(documentId: string) {
-  return linkAssociationsByDocumentId.value.get(documentId) ?? { outbound: [], inbound: [] }
-}
-
-function toggleLinkPanel(documentId: string) {
-  if (expandedLinkPanels.value.has(documentId)) {
-    expandedLinkPanels.value.delete(documentId)
-    return
-  }
-  expandedLinkPanels.value.add(documentId)
-  selectEvidence(documentId)
-}
-
-function isLinkPanelExpanded(documentId: string) {
-  return expandedLinkPanels.value.has(documentId)
-}
-
-function buildLinkGroupKey(documentId: string, direction: 'outbound' | 'inbound') {
-  return `${documentId}:${direction}`
-}
-
-function toggleLinkGroup(documentId: string, direction: 'outbound' | 'inbound') {
-  const key = buildLinkGroupKey(documentId, direction)
-  if (expandedLinkGroups.value.has(key)) {
-    expandedLinkGroups.value.delete(key)
-    return
-  }
-  expandedLinkGroups.value.add(key)
-}
-
-function isLinkGroupExpanded(documentId: string, direction: 'outbound' | 'inbound') {
-  return expandedLinkGroups.value.has(buildLinkGroupKey(documentId, direction))
-}
-
-function buildDocLinkMarkdown(documentId: string) {
-  const title = resolveTitle(documentId).replace(/"/g, '\\"')
-  return `((${documentId} "${title}"))`
-}
-
-function buildSyncKey(coreDocumentId: string, targetDocumentId: string, direction: 'outbound' | 'inbound') {
-  return `${coreDocumentId}:${targetDocumentId}:${direction}`
-}
-
-function isSyncing(coreDocumentId: string, targetDocumentId: string, direction: 'outbound' | 'inbound') {
-  return syncInProgress.value.has(buildSyncKey(coreDocumentId, targetDocumentId, direction))
-}
-
-async function syncAssociation(coreDocumentId: string, targetDocumentId: string, direction: 'outbound' | 'inbound') {
-  const key = buildSyncKey(coreDocumentId, targetDocumentId, direction)
-  if (syncInProgress.value.has(key)) {
-    return
-  }
-  syncInProgress.value.add(key)
-  try {
-    if (direction === 'outbound') {
-      await prependBlock('markdown', buildDocLinkMarkdown(coreDocumentId), targetDocumentId)
-    } else {
-      await appendBlock('markdown', buildDocLinkMarkdown(targetDocumentId), coreDocumentId)
-    }
-    showMessage('已同步关联链接', 3000, 'info')
-    await refresh()
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '同步失败'
-    showMessage(message, 5000, 'error')
-  } finally {
-    syncInProgress.value.delete(key)
-  }
-}
-
-function togglePanel(key: PanelKey) {
-  panelCollapseState.value = togglePanelCollapse(panelCollapseState.value, key)
-}
-
-function isPanelExpanded(key: PanelKey) {
-  return panelCollapseState.value[key] ?? true
-}
-
-function resolveTitle(documentId: string) {
-  return documentMap.value.get(documentId)?.title || documentId
-}
-
-function resolveNotebookName(notebookId: string) {
-  return notebookOptions.value.find(notebook => notebook.id === notebookId)?.name ?? notebookId
-}
-
-function openDocument(documentId: string) {
-  openTab({
-    app: props.plugin.app,
-    doc: {
-      id: documentId,
-      zoomIn: true,
-    },
-  })
-}
-
-function formatTimestamp(timestamp?: string) {
-  if (!timestamp || timestamp.length < 8) {
-    return '未知时间'
-  }
-  return `${timestamp.slice(0, 4)}-${timestamp.slice(4, 6)}-${timestamp.slice(6, 8)}`
-}
-
-function formatDelta(delta: number) {
-  return delta > 0 ? `+${delta}` : delta.toString()
-}
-
-function normalizeTags(tags?: readonly string[] | string) {
-  if (!tags) {
-    return []
-  }
-  if (Array.isArray(tags) || typeof tags !== 'string') {
-    return tags
-  }
-  return tags
-    .split(/[,\s#]+/)
-    .map(tag => tag.trim())
-    .filter(Boolean)
-}
+const {
+  loading,
+  errorMessage,
+  timeRange,
+  timeRangeOptions,
+  selectedNotebook,
+  selectedTag,
+  keyword,
+  orphanSort,
+  dormantDays,
+  fromDocumentId,
+  toDocumentId,
+  pathScope,
+  maxPathDepth,
+  selectedSummaryCardKey,
+  notebookOptions,
+  tagOptions,
+  report,
+  trends,
+  trendLabel,
+  selectedCommunity,
+  selectedCommunityTrend,
+  summaryCards,
+  selectedSummaryDetail,
+  pathOptions,
+  pathChain,
+  selectedDocumentDetail,
+  panelCounts,
+  snapshotLabel,
+  refresh,
+  selectEvidence,
+  selectCommunity,
+  selectSummaryCard,
+  resolveLinkAssociations,
+  toggleLinkPanel,
+  isLinkPanelExpanded,
+  toggleLinkGroup,
+  isLinkGroupExpanded,
+  isSyncing,
+  syncAssociation,
+  togglePanel,
+  isPanelExpanded,
+  resolveTitle,
+  resolveNotebookName,
+  openDocument,
+  formatTimestamp,
+  formatDelta,
+} = analytics
 </script>
 
 <style lang="scss" scoped>
@@ -1845,7 +1207,6 @@ input {
 .panel-header p,
 .meta-text,
 .empty-inline,
-.ranking-item__meta,
 .trend-item span {
   color: var(--panel-muted);
   font-size: 13px;
@@ -1856,7 +1217,6 @@ input {
   white-space: nowrap;
 }
 
-.ranking-list,
 .suggestion-list,
 .community-list,
 .propagation-list,
@@ -1865,7 +1225,6 @@ input {
   gap: 12px;
 }
 
-.ranking-item,
 .suggestion-item,
 .community-item,
 .propagation-item,
@@ -1877,7 +1236,6 @@ input {
   transition: background-color 0.2s;
 }
 
-.ranking-item:hover,
 .suggestion-item:hover,
 .community-item:hover,
 .propagation-item:hover,
@@ -1885,7 +1243,6 @@ input {
   background: var(--surface-card-soft);
 }
 
-.ranking-item__title,
 .suggestion-item__title,
 .propagation-item__title,
 .summary-detail-item__title,
@@ -1903,7 +1260,6 @@ input {
   transition: color 0.15s;
 }
 
-.ranking-item__title:hover,
 .suggestion-item__title:hover,
 .propagation-item__title:hover,
 .summary-detail-item__title:hover,
@@ -1911,7 +1267,6 @@ input {
   color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
 }
 
-.ranking-item__title,
 .suggestion-item__title,
 .propagation-item__title,
 .summary-detail-item__title {
@@ -1919,13 +1274,6 @@ input {
   font-size: 15px;
 }
 
-.ranking-item {
-  display: grid;
-  gap: 10px;
-}
-
-.ranking-item__meta,
-.ranking-item__actions,
 .community-item__header,
 .community-detail__header,
 .propagation-item__header,
@@ -1936,63 +1284,6 @@ input {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.link-association {
-  margin-top: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px dashed var(--panel-border);
-  background: var(--surface-card-soft);
-  display: grid;
-  gap: 12px;
-}
-
-.link-association__toggle {
-  border: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--b3-theme-on-background);
-  cursor: pointer;
-  padding: 0;
-}
-
-.link-association__list {
-  margin-top: 8px;
-  display: grid;
-  gap: 8px;
-}
-
-.link-association__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.link-association__doc {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  font: inherit;
-  color: var(--b3-theme-primary);
-  cursor: pointer;
-  text-align: left;
-}
-
-.link-association__doc:hover {
-  color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
-}
-
-.link-association__doc--highlight {
-  color: color-mix(in srgb, var(--accent-warm) 75%, var(--b3-theme-on-background));
-  font-weight: 600;
-}
-
-.link-association__doc--highlight:hover {
-  color: color-mix(in srgb, var(--accent-warm) 60%, var(--b3-theme-on-background));
 }
 
 .summary-detail-item__header {

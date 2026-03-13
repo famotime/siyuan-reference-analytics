@@ -1,0 +1,395 @@
+<template>
+  <section class="panel panel--primary">
+    <div class="panel-header">
+      <div>
+        <h2>核心文档排行</h2>
+        <p>按文档级被引用次数、引用文档数和最近活跃时间排序。</p>
+      </div>
+      <div class="panel-header__actions">
+        <span class="meta-text">{{ panelCount }} 篇文档</span>
+        <span class="meta-text">最近刷新 {{ snapshotLabel }}</span>
+        <button
+          class="panel-toggle"
+          type="button"
+          :aria-expanded="isExpanded"
+          :aria-label="isExpanded ? '折叠详情' : '展开详情'"
+          @click="onTogglePanel"
+        >
+          {{ isExpanded ? '折叠' : '展开' }}
+          <span
+            class="panel-toggle__caret"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-show="isExpanded"
+      class="panel-body"
+    >
+      <div
+        v-if="ranking.length"
+        class="ranking-list"
+      >
+        <article
+          v-for="item in ranking.slice(0, 12)"
+          :key="item.documentId"
+          class="ranking-item"
+        >
+          <button
+            class="ranking-item__title"
+            type="button"
+            @click="openDocument(item.documentId)"
+          >
+            {{ resolveTitle(item.documentId) }}
+          </button>
+          <div class="ranking-item__meta">
+            <span>{{ item.inboundReferences }} 次引用</span>
+            <span>{{ item.distinctSourceDocuments }} 个来源文档</span>
+            <span>{{ formatTimestamp(item.lastActiveAt) }}</span>
+          </div>
+          <div class="ranking-item__actions">
+            <button
+              class="ghost-button"
+              type="button"
+              @click="toggleLinkPanel(item.documentId)"
+            >
+              {{ isLinkPanelExpanded(item.documentId) ? '收起关联引用/链接' : '查看关联引用/链接' }}
+            </button>
+          </div>
+          <div
+            v-if="isLinkPanelExpanded(item.documentId)"
+            class="link-association"
+          >
+            <div class="link-association__group">
+              <button
+                class="link-association__toggle"
+                type="button"
+                @click="toggleLinkGroup(item.documentId, 'outbound')"
+              >
+                出链（正链） {{ resolveLinkAssociations(item.documentId).outbound.length }}
+              </button>
+              <div
+                v-show="isLinkGroupExpanded(item.documentId, 'outbound')"
+                class="link-association__list"
+              >
+                <div
+                  v-for="link in resolveLinkAssociations(item.documentId).outbound"
+                  :key="`outbound-${item.documentId}-${link.documentId}`"
+                  class="link-association__item"
+                >
+                  <button
+                    class="link-association__doc"
+                    :class="{ 'link-association__doc--highlight': !link.isOverlap }"
+                    type="button"
+                    @click="openDocument(link.documentId)"
+                  >
+                    {{ link.title }}
+                  </button>
+                  <button
+                    v-if="!link.isOverlap"
+                    class="ghost-button"
+                    type="button"
+                    :disabled="isSyncing(item.documentId, link.documentId, 'outbound')"
+                    @click="syncAssociation(item.documentId, link.documentId, 'outbound')"
+                  >
+                    {{ isSyncing(item.documentId, link.documentId, 'outbound') ? '同步中...' : '同步' }}
+                  </button>
+                </div>
+                <p
+                  v-if="resolveLinkAssociations(item.documentId).outbound.length === 0"
+                  class="empty-inline"
+                >
+                  当前没有出链关联。
+                </p>
+              </div>
+            </div>
+            <div class="link-association__group">
+              <button
+                class="link-association__toggle"
+                type="button"
+                @click="toggleLinkGroup(item.documentId, 'inbound')"
+              >
+                入链（反链） {{ resolveLinkAssociations(item.documentId).inbound.length }}
+              </button>
+              <div
+                v-show="isLinkGroupExpanded(item.documentId, 'inbound')"
+                class="link-association__list"
+              >
+                <div
+                  v-for="link in resolveLinkAssociations(item.documentId).inbound"
+                  :key="`inbound-${item.documentId}-${link.documentId}`"
+                  class="link-association__item"
+                >
+                  <button
+                    class="link-association__doc"
+                    :class="{ 'link-association__doc--highlight': !link.isOverlap }"
+                    type="button"
+                    @click="openDocument(link.documentId)"
+                  >
+                    {{ link.title }}
+                  </button>
+                  <button
+                    v-if="!link.isOverlap"
+                    class="ghost-button"
+                    type="button"
+                    :disabled="isSyncing(item.documentId, link.documentId, 'inbound')"
+                    @click="syncAssociation(item.documentId, link.documentId, 'inbound')"
+                  >
+                    {{ isSyncing(item.documentId, link.documentId, 'inbound') ? '同步中...' : '同步' }}
+                  </button>
+                </div>
+                <p
+                  v-if="resolveLinkAssociations(item.documentId).inbound.length === 0"
+                  class="empty-inline"
+                >
+                  当前没有入链关联。
+                </p>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div
+        v-else
+        class="empty-state"
+      >
+        当前筛选条件下没有命中的文档级引用关系。
+      </div>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import type { RankingItem } from '@/analytics/analysis'
+import type { LinkAssociations } from '@/analytics/link-associations'
+
+type LinkDirection = 'outbound' | 'inbound'
+
+const props = defineProps<{
+  ranking: RankingItem[]
+  panelCount: number
+  snapshotLabel: string
+  isExpanded: boolean
+  onTogglePanel: () => void
+  resolveTitle: (documentId: string) => string
+  formatTimestamp: (timestamp?: string) => string
+  openDocument: (documentId: string) => void
+  toggleLinkPanel: (documentId: string) => void
+  isLinkPanelExpanded: (documentId: string) => boolean
+  resolveLinkAssociations: (documentId: string) => LinkAssociations
+  toggleLinkGroup: (documentId: string, direction: LinkDirection) => void
+  isLinkGroupExpanded: (documentId: string, direction: LinkDirection) => boolean
+  isSyncing: (coreDocumentId: string, targetDocumentId: string, direction: LinkDirection) => boolean
+  syncAssociation: (coreDocumentId: string, targetDocumentId: string, direction: LinkDirection) => void
+}>()
+</script>
+
+<style scoped>
+.panel {
+  border-radius: 16px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-card-strong);
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+}
+
+.panel--primary {
+  grid-column: span 1;
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.panel-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.panel-header p,
+.meta-text,
+.empty-inline,
+.ranking-item__meta {
+  color: var(--panel-muted);
+  font-size: 13px;
+}
+
+.panel-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.meta-text {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.panel-toggle {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-card-soft);
+  color: var(--b3-theme-on-background);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.panel-toggle:hover {
+  background: var(--surface-card);
+}
+
+.panel-toggle__caret {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.panel-toggle[aria-expanded='false'] .panel-toggle__caret {
+  transform: rotate(-45deg);
+}
+
+.ranking-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ranking-item {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--panel-border);
+  transition: background-color 0.2s;
+  display: grid;
+  gap: 10px;
+}
+
+.ranking-item:hover {
+  background: var(--surface-card-soft);
+}
+
+.ranking-item__title {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--b3-theme-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: color 0.15s;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.ranking-item__title:hover {
+  color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
+}
+
+.ranking-item__meta,
+.ranking-item__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ghost-button {
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--b3-theme-primary);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ghost-button:hover {
+  background: color-mix(in srgb, var(--b3-theme-primary) 15%, transparent);
+}
+
+.ghost-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--panel-muted);
+  background: var(--surface-card);
+  border-radius: 12px;
+  border: 1px dashed var(--panel-border);
+}
+
+.link-association {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--panel-border);
+  background: var(--surface-card-soft);
+  display: grid;
+  gap: 12px;
+}
+
+.link-association__toggle {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--b3-theme-on-background);
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-association__list {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.link-association__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.link-association__doc {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--b3-theme-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.link-association__doc:hover {
+  color: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent);
+}
+
+.link-association__doc--highlight {
+  color: color-mix(in srgb, var(--accent-warm) 75%, var(--b3-theme-on-background));
+  font-weight: 600;
+}
+
+.link-association__doc--highlight:hover {
+  color: color-mix(in srgb, var(--accent-warm) 60%, var(--b3-theme-on-background));
+}
+</style>
