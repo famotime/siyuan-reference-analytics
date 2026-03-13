@@ -1,7 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-
-import { useAnalyticsState } from './use-analytics'
 
 const now = new Date('2026-03-12T00:00:00Z')
 
@@ -16,6 +14,12 @@ const snapshot = {
   notebooks: [],
   fetchedAt: '20260312000000',
 }
+
+vi.mock('@/analytics/siyuan-data', () => ({
+  loadAnalyticsSnapshot: async () => snapshot as any,
+}))
+
+import { useAnalyticsState } from './use-analytics'
 
 describe('useAnalyticsState', () => {
   it('refreshes snapshot and updates derived states', async () => {
@@ -37,5 +41,22 @@ describe('useAnalyticsState', () => {
     expect(documentCard?.value).toBe('2')
     expect(state.report.value?.ranking.map(item => item.documentId)).toEqual(['doc-b'])
     expect(state.selectedEvidenceDocument.value).toBe('doc-b')
+  })
+
+  it('uses default snapshot loader when not provided', async () => {
+    const state = useAnalyticsState({
+      plugin: { eventBus: { on: () => {}, off: () => {} }, app: {} } as any,
+      nowProvider: () => now,
+      createActiveDocumentSync: () => () => {},
+      showMessage: () => {},
+      openTab: () => {},
+      appendBlock: async () => [],
+      prependBlock: async () => [],
+    })
+
+    await state.refresh()
+    await nextTick()
+
+    expect(state.report.value?.ranking.map(item => item.documentId)).toEqual(['doc-b'])
   })
 })

@@ -16,7 +16,7 @@ import { buildPanelCounts } from '@/analytics/panel-counts'
 import { buildSummaryCards, buildSummaryDetailSections, type SummaryCardItem, type SummaryCardKey } from '@/analytics/summary-details'
 import { buildTimeRangeOptions } from '@/analytics/time-range'
 import { buildPanelCollapseState, togglePanelCollapse, type PanelCollapseState } from '@/analytics/panel-collapse'
-import type { AnalyticsSnapshot } from '@/analytics/siyuan-data'
+import { loadAnalyticsSnapshot, type AnalyticsSnapshot } from '@/analytics/siyuan-data'
 
 export type PathScope = 'focused' | 'all' | 'community'
 
@@ -60,7 +60,7 @@ type UseAnalyticsParams = {
 }
 
 export function useAnalyticsState(params: UseAnalyticsParams) {
-  const loadSnapshot = params.loadSnapshot ?? defaultLoadSnapshot
+  const loadSnapshot = params.loadSnapshot ?? loadAnalyticsSnapshot
   const nowProvider = params.nowProvider ?? (() => new Date())
   const syncActiveDocument = params.createActiveDocumentSync ?? createActiveDocumentSync
   const notify = params.showMessage
@@ -645,9 +645,4 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     formatTimestamp,
     formatDelta,
   }
-}
-
-async function defaultLoadSnapshot() {
-  const mod = await import('@/analytics/siyuan-data')
-  return mod.loadAnalyticsSnapshot()
 }
