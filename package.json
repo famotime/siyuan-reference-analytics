@@ -2,7 +2,7 @@
   "name": "siyuan-reference-analytics",
   "version": "0.0.1",
   "type": "module",
-  "description": "A SiYuan plugin for document reference analytics.",
+  "description": "A SiYuan plugin for document context lens.",
   "author": "",
   "license": "MIT",
   "homepage": "",

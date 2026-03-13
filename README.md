@@ -1,6 +1,6 @@
 # siyuan-reference-analytics
 
-思源笔记插件：引用网络分析器。
+思源笔记插件：脉络镜。
 
 当前版本提供：
 

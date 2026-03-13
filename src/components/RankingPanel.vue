@@ -70,7 +70,7 @@
                 @click="toggleLinkGroup(item.documentId, 'outbound')"
               >
                 <span class="link-association__caret" aria-hidden="true" />
-                出链（正链） {{ resolveLinkAssociations(item.documentId).outbound.length }}
+                正链（出链） {{ resolveLinkAssociations(item.documentId).outbound.length }}
               </button>
               <div
                 v-show="isLinkGroupExpanded(item.documentId, 'outbound')"
@@ -115,7 +115,7 @@
                 @click="toggleLinkGroup(item.documentId, 'inbound')"
               >
                 <span class="link-association__caret" aria-hidden="true" />
-                入链（反链） {{ resolveLinkAssociations(item.documentId).inbound.length }}
+                反链（入链） {{ resolveLinkAssociations(item.documentId).inbound.length }}
               </button>
               <div
                 v-show="isLinkGroupExpanded(item.documentId, 'inbound')"

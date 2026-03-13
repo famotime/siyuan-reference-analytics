@@ -12,9 +12,9 @@
     "all"
   ],
   "displayName": {
-    "default": "Reference Analytics",
-    "en_US": "Reference Analytics",
-    "zh_CN": "引用网络分析器"
+    "default": "Context lens",
+    "en_US": "Context lens",
+    "zh_CN": "脉络镜"
   },
   "description": {
     "default": "Analyze SiYuan document references and surface hubs, communities, orphans, trends, paths, and repair suggestions.",

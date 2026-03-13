@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-这是一个思源笔记插件项目，名称是“引用网络分析器（Reference Analytics）”。
+这是一个思源笔记插件项目，名称是“脉络镜（Context lens）”。
 
 当前目标不是做图谱渲染，而是做“文档级引用网络”的结构分析与整理辅助。核心输出包括：
 
@@ -142,9 +142,9 @@ markdown fallback 当前支持：
   - 顶部统计卡片对应的详情列表生成逻辑
 - `src/analytics/*.test.ts`
   - 当前主要测试覆盖点
-- `docs/思源笔记插件_PRD_引用网络分析器_Reference_Analytics.md`
+- `docs/思源笔记插件_PRD_脉络镜_Reference_Analytics.md`
   - 原始 PRD
-- `docs/思源笔记插件_引用网络分析器_PRD差距清单.md`
+- `docs/思源笔记插件_脉络镜_PRD差距清单.md`
   - 当前差距收敛记录，按最新实现已完成本轮清单
 - /reference_docs
   - 思源笔记插件开发者文档，包括相关API接口说明和示例

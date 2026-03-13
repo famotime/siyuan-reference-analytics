@@ -6,7 +6,7 @@ import { destroyApp, mountApp, mountSetting, destroySetting } from '@/main'
 import { DEFAULT_CONFIG, type PluginConfig } from './types/config'
 
 const DOCK_TYPE = 'reference-analytics-dock'
-const PLUGIN_TITLE = '引用网络分析器'
+const PLUGIN_TITLE = '脉络镜'
 const PLUGIN_ICON = 'iconGraph'
 
 export default class ReferenceAnalyticsPlugin extends Plugin {
@@ -79,7 +79,7 @@ export default class ReferenceAnalyticsPlugin extends Plugin {
 
   openSetting() {
     const dialog = new Dialog({
-      title: '引用网络分析器 设置',
+      title: '脉络镜 设置',
       width: '600px',
       height: '500px',
       content: '<div id="reference-analytics-setting-root" style="height: 100%;"></div>',
