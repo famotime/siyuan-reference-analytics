@@ -1,5 +1,5 @@
 {
-  "name": "siyuan-reference-analytics",
+  "name": "siyuan-context-lens",
   "version": "0.0.1",
   "type": "module",
   "description": "A SiYuan plugin for document context lens.",
