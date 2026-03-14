@@ -10,14 +10,6 @@ import {
   type TimeRange,
 } from '@/analytics/analysis'
 import { createActiveDocumentSync } from '@/analytics/active-document'
-import { buildLinkAssociations } from '@/analytics/link-associations'
-import {
-  addThemeLinkToDocumentChange,
-  applyThemeLinkToOrphanDocument,
-  removeThemeLinkFromDocumentChange,
-  type AppliedThemeLinkChange,
-} from '@/analytics/orphan-theme-links'
-import { syncAssociation as syncAssociationCore, type LinkDirection } from '@/analytics/link-sync'
 import { buildPanelCounts } from '@/analytics/panel-counts'
 import { collectReadMatches, type ReadCardMode } from '@/analytics/read-status'
 import {
@@ -28,13 +20,26 @@ import {
   sortSummaryCards,
 } from '@/analytics/summary-card-order'
 import { buildSummaryCards, buildSummaryDetailSections, type SummaryCardItem, type SummaryCardKey } from '@/analytics/summary-details'
-import { buildThemeOptions, collectThemeDocuments, countThemeMatchesForDocument } from '@/analytics/theme-documents'
+import { buildThemeOptions, collectThemeDocuments } from '@/analytics/theme-documents'
 import { buildTimeRangeOptions } from '@/analytics/time-range'
 import { buildPanelCollapseState, togglePanelCollapse, type PanelCollapseState } from '@/analytics/panel-collapse'
 import { loadAnalyticsSnapshot, type AnalyticsSnapshot } from '@/analytics/siyuan-data'
+import {
+  buildLinkAssociationMap,
+  buildOrphanDetailItems,
+  buildOrphanThemeSuggestionMap,
+  buildPathOptions,
+  buildTagOptions,
+  countSelectedSummaryItems,
+  type PathScope,
+} from './use-analytics-derived'
+import {
+  createLinkAssociationInteractions,
+  createThemeSuggestionController,
+} from './use-analytics-interactions'
 import type { PluginConfig } from '@/types/config'
 
-export type PathScope = 'focused' | 'all' | 'community'
+export type { PathScope } from './use-analytics-derived'
 
 const panelKeys = [
   'summary-detail',
@@ -111,10 +116,6 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
   const readCardMode = ref<ReadCardMode>('unread')
   const summaryCardOrder = ref<SummaryCardKey[]>(normalizeSummaryCardOrder(params.config.summaryCardOrder))
   const panelCollapseState = ref<PanelCollapseState<PanelKey>>(buildPanelCollapseState(panelKeys))
-  const expandedLinkPanels = ref(new Set<string>())
-  const expandedLinkGroups = ref(new Set<string>())
-  const syncInProgress = ref(new Set<string>())
-  const pendingThemeSuggestionBlocks = ref(new Map<string, AppliedThemeLinkChange>())
   const timeRangeOptions = computed(() => buildTimeRangeOptions())
   let disposeActiveDocumentSync: (() => void) | null = null
 
@@ -126,15 +127,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
   }))
 
   const notebookOptions = computed(() => snapshot.value?.notebooks ?? [])
-  const tagOptions = computed(() => {
-    const tagSet = new Set<string>()
-    for (const document of snapshot.value?.documents ?? []) {
-      for (const tag of normalizeTags(document.tags)) {
-        tagSet.add(tag)
-      }
-    }
-    return [...tagSet].sort((left, right) => left.localeCompare(right, 'zh-CN'))
-  })
+  const tagOptions = computed(() => buildTagOptions(snapshot.value?.documents ?? []))
 
   const documentMap = computed(() => {
     return new Map((snapshot.value?.documents ?? []).map(document => [document.id, document]))
@@ -145,6 +138,16 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
   }))
   const themeDocumentIds = computed(() => new Set(themeDocuments.value.map(document => document.documentId)))
   const themeOptions = computed(() => buildThemeOptions(themeDocuments.value))
+
+  const themeSuggestionController = createThemeSuggestionController({
+    getThemeDocuments: () => themeDocuments.value,
+    notify,
+    deleteBlock,
+    updateBlock,
+    getChildBlocks,
+    getBlockKramdown,
+    prependBlock,
+  })
 
   const filteredDocuments = computed(() => {
     if (!snapshot.value) {
@@ -276,96 +279,28 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
   const selectedSummaryDetail = computed(() => {
     return summaryDetailSections.value?.[selectedSummaryCardKey.value] ?? null
   })
-  const orphanThemeSuggestions = computed(() => {
-    const suggestions = new Map<string, ReturnType<typeof countThemeMatchesForDocument>>()
+  const orphanThemeSuggestions = computed(() => buildOrphanThemeSuggestionMap({
+    orphans: report.value?.orphans ?? [],
+    documentMap: documentMap.value,
+    themeDocuments: themeDocuments.value,
+  }))
+  const orphanDetailItems = computed(() => buildOrphanDetailItems({
+    selectedSummaryDetail: selectedSummaryDetail.value,
+    orphanThemeSuggestions: orphanThemeSuggestions.value,
+  }))
 
-    if (!report.value) {
-      return suggestions
-    }
+  const selectedSummaryCount = computed(() => countSelectedSummaryItems(selectedSummaryDetail.value))
 
-    for (const orphan of report.value.orphans) {
-      const document = documentMap.value.get(orphan.documentId)
-      if (!document) {
-        continue
-      }
-      const matches = countThemeMatchesForDocument({
-        document,
-        themeDocuments: themeDocuments.value,
-      })
-      if (matches.length) {
-        suggestions.set(orphan.documentId, matches)
-      }
-    }
-
-    return suggestions
-  })
-  const orphanDetailItems = computed(() => {
-    if (selectedSummaryDetail.value?.key !== 'orphans' || selectedSummaryDetail.value.kind !== 'list') {
-      return []
-    }
-
-    return selectedSummaryDetail.value.items.map(item => ({
-      ...item,
-      themeSuggestions: orphanThemeSuggestions.value.get(item.documentId) ?? [],
-    }))
-  })
-
-  const selectedSummaryCount = computed(() => {
-    const detail = selectedSummaryDetail.value
-    if (!detail) {
-      return 0
-    }
-    if (detail.kind === 'list') {
-      return detail.items.length
-    }
-    if (detail.kind === 'ranking') {
-      return detail.ranking.length
-    }
-    if (detail.kind === 'propagation') {
-      return detail.items.length
-    }
-    if (detail.kind === 'trends') {
-      return detail.trends.risingDocuments.length + detail.trends.fallingDocuments.length
-    }
-    return 0
-  })
-
-  const pathOptions = computed(() => {
-    const ids = new Set<string>()
-
-    if (pathScope.value === 'all') {
-      for (const document of filteredDocuments.value) {
-        ids.add(document.id)
-      }
-    } else if (pathScope.value === 'community') {
-      for (const documentId of selectedCommunity.value?.documentIds ?? []) {
-        ids.add(documentId)
-      }
-    } else {
-      for (const item of report.value?.ranking ?? []) {
-        ids.add(item.documentId)
-      }
-      for (const item of report.value?.bridgeDocuments ?? []) {
-        ids.add(item.documentId)
-      }
-      for (const item of report.value?.propagationNodes ?? []) {
-        ids.add(item.documentId)
-      }
-    }
-
-    return [...ids]
-      .map((id) => {
-        const document = documentMap.value.get(id)
-        return document
-          ? {
-              id,
-              title: resolveTitle(id),
-            }
-          : null
-      })
-      .filter((item): item is { id: string, title: string } => item !== null)
-      .sort((left, right) => left.title.localeCompare(right.title, 'zh-CN'))
-  })
+  const pathOptions = computed(() => buildPathOptions({
+    pathScope: pathScope.value,
+    filteredDocuments: filteredDocuments.value,
+    selectedCommunity: selectedCommunity.value,
+    ranking: report.value?.ranking ?? [],
+    bridgeDocuments: report.value?.bridgeDocuments ?? [],
+    propagationNodes: report.value?.propagationNodes ?? [],
+    documentMap: documentMap.value,
+    resolveTitle,
+  }))
 
   const pathChain = computed(() => {
     if (!snapshot.value || !fromDocumentId.value || !toDocumentId.value || fromDocumentId.value === toDocumentId.value) {
@@ -383,23 +318,16 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     })
   })
 
-  const linkAssociationsByDocumentId = computed(() => {
-    const map = new Map<string, ReturnType<typeof buildLinkAssociations>>()
-    if (!snapshot.value) {
-      return map
-    }
-    for (const item of report.value?.ranking ?? []) {
-      map.set(item.documentId, buildLinkAssociations({
-        documentId: item.documentId,
+  const linkAssociationsByDocumentId = computed(() => snapshot.value
+    ? buildLinkAssociationMap({
         references: snapshot.value.references,
-        documentMap: sampleDocumentMap.value,
-        childDocumentMap: associationDocumentMap.value,
+        ranking: report.value?.ranking ?? [],
+        sampleDocumentMap: sampleDocumentMap.value,
+        associationDocumentMap: associationDocumentMap.value,
         now: analysisNow.value,
         timeRange: timeRange.value,
-      }))
-    }
-    return map
-  })
+      })
+    : new Map())
 
   const panelCounts = computed(() => {
     if (!report.value) {
@@ -543,7 +471,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     analysisNow.value = nowProvider()
     try {
       snapshot.value = await loadSnapshot()
-      pendingThemeSuggestionBlocks.value.clear()
+      themeSuggestionController.clearPendingThemeSuggestionBlocks()
     } catch (error) {
       const message = error instanceof Error ? error.message : '读取思源数据失败'
       errorMessage.value = message
@@ -602,69 +530,6 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     return linkAssociationsByDocumentId.value.get(documentId) ?? { outbound: [], inbound: [], childDocuments: [] }
   }
 
-  function toggleLinkPanel(documentId: string) {
-    if (expandedLinkPanels.value.has(documentId)) {
-      expandedLinkPanels.value.delete(documentId)
-      return
-    }
-    expandedLinkPanels.value.add(documentId)
-    selectEvidence(documentId)
-  }
-
-  function isLinkPanelExpanded(documentId: string) {
-    return expandedLinkPanels.value.has(documentId)
-  }
-
-  function buildLinkGroupKey(documentId: string, direction: LinkDirection) {
-    return `${documentId}:${direction}`
-  }
-
-  function toggleLinkGroup(documentId: string, direction: LinkDirection) {
-    const key = buildLinkGroupKey(documentId, direction)
-    if (expandedLinkGroups.value.has(key)) {
-      expandedLinkGroups.value.delete(key)
-      return
-    }
-    expandedLinkGroups.value.add(key)
-  }
-
-  function isLinkGroupExpanded(documentId: string, direction: LinkDirection) {
-    return expandedLinkGroups.value.has(buildLinkGroupKey(documentId, direction))
-  }
-
-  function buildSyncKey(coreDocumentId: string, targetDocumentId: string, direction: LinkDirection) {
-    return `${coreDocumentId}:${targetDocumentId}:${direction}`
-  }
-
-  function isSyncing(coreDocumentId: string, targetDocumentId: string, direction: LinkDirection) {
-    return syncInProgress.value.has(buildSyncKey(coreDocumentId, targetDocumentId, direction))
-  }
-
-  async function syncAssociation(coreDocumentId: string, targetDocumentId: string, direction: LinkDirection) {
-    const key = buildSyncKey(coreDocumentId, targetDocumentId, direction)
-    if (syncInProgress.value.has(key)) {
-      return
-    }
-    syncInProgress.value.add(key)
-    try {
-      await syncAssociationCore({
-        coreDocumentId,
-        targetDocumentId,
-        direction,
-        resolveTitle,
-        appendBlock,
-        prependBlock,
-      })
-      notify('已同步关联链接', 3000, 'info')
-      await refresh()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '同步失败'
-      notify(message, 5000, 'error')
-    } finally {
-      syncInProgress.value.delete(key)
-    }
-  }
-
   function togglePanel(key: PanelKey) {
     panelCollapseState.value = togglePanelCollapse(panelCollapseState.value, key)
   }
@@ -701,77 +566,14 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     return delta > 0 ? `+${delta}` : delta.toString()
   }
 
-  function isThemeSuggestionActive(orphanDocumentId: string, themeDocumentId: string) {
-    return pendingThemeSuggestionBlocks.value.get(orphanDocumentId)?.links.some(item => item.themeDocumentId === themeDocumentId) ?? false
-  }
-
-  async function toggleOrphanThemeSuggestion(orphanDocumentId: string, themeDocumentId: string) {
-    const existingChange = pendingThemeSuggestionBlocks.value.get(orphanDocumentId)
-
-    if (existingChange?.links.some(item => item.themeDocumentId === themeDocumentId)) {
-      try {
-        const nextChange = await removeThemeLinkFromDocumentChange({
-          change: existingChange,
-          themeDocumentId,
-          deleteBlock,
-          updateBlock,
-        })
-        if (nextChange) {
-          pendingThemeSuggestionBlocks.value.set(orphanDocumentId, nextChange)
-        } else {
-          pendingThemeSuggestionBlocks.value.delete(orphanDocumentId)
-        }
-        notify('已撤销主题链接建议', 3000, 'info')
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '撤销主题链接失败'
-        notify(message, 5000, 'error')
-      }
-      return
-    }
-
-    const themeDocument = themeDocuments.value.find(item => item.documentId === themeDocumentId)
-    if (!themeDocument) {
-      notify('未找到对应的主题文档', 5000, 'error')
-      return
-    }
-
-    try {
-      const change = existingChange
-        ? await addThemeLinkToDocumentChange({
-            change: existingChange,
-            themeDocumentId: themeDocument.documentId,
-            themeDocumentTitle: themeDocument.title,
-            updateBlock,
-          })
-        : await applyThemeLinkToOrphanDocument({
-            orphanDocumentId,
-            themeDocumentId: themeDocument.documentId,
-            themeDocumentTitle: themeDocument.title,
-            getChildBlocks,
-            getBlockKramdown,
-            updateBlock,
-            prependBlock,
-          })
-      pendingThemeSuggestionBlocks.value.set(orphanDocumentId, change)
-      notify('已插入主题链接，刷新分析后将重新判断孤立状态', 3000, 'info')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '插入主题链接失败'
-      notify(message, 5000, 'error')
-    }
-  }
-
-  function normalizeTags(tags?: readonly string[] | string) {
-    if (!tags) {
-      return []
-    }
-    if (Array.isArray(tags) || typeof tags !== 'string') {
-      return tags
-    }
-    return tags
-      .split(/[\,\s#]+/)
-      .map(tag => tag.trim())
-      .filter(Boolean)
-  }
+  const linkInteractions = createLinkAssociationInteractions({
+    resolveTitle,
+    appendBlock,
+    prependBlock,
+    notify,
+    refresh,
+    onSelectEvidence: selectEvidence,
+  })
 
   const selectedTag = computed({
     get: () => selectedTags.value[0] ?? '',
@@ -838,12 +640,12 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     reorderSummaryCard,
     resetSummaryCardOrder,
     resolveLinkAssociations,
-    toggleLinkPanel,
-    isLinkPanelExpanded,
-    toggleLinkGroup,
-    isLinkGroupExpanded,
-    isSyncing,
-    syncAssociation,
+    toggleLinkPanel: linkInteractions.toggleLinkPanel,
+    isLinkPanelExpanded: linkInteractions.isLinkPanelExpanded,
+    toggleLinkGroup: linkInteractions.toggleLinkGroup,
+    isLinkGroupExpanded: linkInteractions.isLinkGroupExpanded,
+    isSyncing: linkInteractions.isSyncing,
+    syncAssociation: linkInteractions.syncAssociation,
     togglePanel,
     isPanelExpanded,
     resolveTitle,
@@ -851,7 +653,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     openDocument,
     formatTimestamp,
     formatDelta,
-    toggleOrphanThemeSuggestion,
-    isThemeSuggestionActive,
+    toggleOrphanThemeSuggestion: themeSuggestionController.toggleOrphanThemeSuggestion,
+    isThemeSuggestionActive: themeSuggestionController.isThemeSuggestionActive,
   }
 }

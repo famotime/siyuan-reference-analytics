@@ -1,4 +1,5 @@
 import type { DocumentRecord } from './analysis'
+import { normalizeTags, resolveDocumentTitle } from './document-utils'
 import type { PluginConfig } from '@/types/config'
 
 export type ReadMarkerConfig = Pick<PluginConfig, 'readTagNames' | 'readTitlePrefixes' | 'readTitleSuffixes'>
@@ -30,7 +31,7 @@ export function collectReadMatches(params: {
   return params.documents
     .map((document) => {
       const title = resolveDocumentTitle(document)
-      const matchedTags = normalizeDocumentTags(document.tags).filter(tag => selectedTags.has(tag))
+      const matchedTags = normalizeTags(document.tags).filter(tag => selectedTags.has(tag))
       const matchedPrefixes = prefixes.filter(prefix => title.startsWith(prefix))
       const matchedSuffixes = suffixes.filter(suffix => title.endsWith(suffix))
 
@@ -69,24 +70,4 @@ function normalizeSelectedTags(tags?: readonly string[]): string[] {
   return tags
     .map(tag => tag.trim())
     .filter(Boolean)
-}
-
-function normalizeDocumentTags(tags?: readonly string[] | string): string[] {
-  if (!tags) {
-    return []
-  }
-  if (Array.isArray(tags)) {
-    return tags
-      .map(tag => tag.trim())
-      .filter(Boolean)
-  }
-
-  return tags
-    .split(/[,\s#]+/)
-    .map(tag => tag.trim())
-    .filter(Boolean)
-}
-
-function resolveDocumentTitle(document: Pick<DocumentRecord, 'title' | 'name' | 'hpath' | 'path' | 'id'>): string {
-  return document.title || document.name || document.hpath || document.path || document.id
 }

@@ -1,4 +1,5 @@
 import type { DocumentRecord } from './analysis'
+import { normalizeTags, resolveDocumentTitle as resolveTitle } from './document-utils'
 import type { PluginConfig } from '@/types/config'
 
 export interface ThemeDocument {
@@ -197,11 +198,7 @@ function buildMatchFields(
   document: Pick<DocumentRecord, 'path' | 'hpath' | 'title' | 'name' | 'alias' | 'content' | 'tags'>,
   options?: { includeContent?: boolean },
 ): string[] {
-  const tags = Array.isArray(document.tags)
-    ? document.tags
-    : typeof document.tags === 'string'
-      ? document.tags.split(/[,\s#]+/)
-      : []
+  const tags = normalizeTags(document.tags)
 
   const fields = [
     resolveTitle(document),
@@ -250,8 +247,4 @@ function countOccurrences(haystack: string, needle: string): number {
   }
 
   return count
-}
-
-function resolveTitle(document: Pick<DocumentRecord, 'id' | 'title' | 'name' | 'content' | 'hpath'>): string {
-  return document.title || document.name || document.content || document.hpath || document.id
 }

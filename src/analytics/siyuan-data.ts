@@ -5,6 +5,7 @@ import {
   buildInternalLinkReferences,
   collectInternalLinkTargetIds,
 } from './internal-links'
+import { normalizeTags } from './document-utils'
 
 export interface NotebookOption {
   id: string
@@ -157,7 +158,7 @@ export async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
       name: row.name ?? '',
       alias: row.alias ?? '',
       content: row.content ?? '',
-      tags: parseTags(row.tag),
+      tags: normalizeTags(row.tag),
       created: row.created,
       updated: row.updated,
     })),
@@ -179,16 +180,6 @@ export async function loadAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
     })),
     fetchedAt: new Date().toISOString(),
   }
-}
-
-function parseTags(raw: string | null): string[] {
-  if (!raw) {
-    return []
-  }
-  return raw
-    .split(/[,\s#]+/)
-    .map(tag => tag.trim())
-    .filter(Boolean)
 }
 
 async function loadInternalLinkTargets(targetIds: string[]): Promise<InternalLinkTargetRow[]> {

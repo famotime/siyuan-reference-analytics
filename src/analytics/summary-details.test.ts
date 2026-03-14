@@ -229,6 +229,49 @@ describe('buildSummaryDetailSections', () => {
     expect(docB?.meta).toBe('入链 2 / 出链 0')
     expect(docC?.meta).toBe('入链 1 / 出链 1')
   })
+
+  it('keeps active relationship details aligned with local time window semantics', () => {
+    const sections = buildSummaryDetailSections({
+      documents: [
+        { id: 'doc-local-source', box: 'box-1', path: '/local-source.sy', hpath: '/Local Source', title: 'Local Source', tags: [], created: '20260301090000', updated: '20260313213430' },
+        { id: 'doc-local-target', box: 'box-1', path: '/local-target.sy', hpath: '/Local Target', title: 'Local Target', tags: [], created: '20260301090000', updated: '20260313213430' },
+      ],
+      references: [
+        { id: 'ref-local', sourceDocumentId: 'doc-local-source', sourceBlockId: 'blk-local-source', targetDocumentId: 'doc-local-target', targetBlockId: 'blk-local-target', content: '[[Local Target]]', sourceUpdated: '20260313213430' },
+      ],
+      report: {
+        ...report,
+        summary: {
+          ...report.summary,
+          totalDocuments: 2,
+          analyzedDocuments: 2,
+          totalReferences: 1,
+          orphanCount: 0,
+          communityCount: 1,
+          dormantCount: 0,
+          propagationCount: 0,
+        },
+        ranking: [
+          { documentId: 'doc-local-target', title: 'Local Target', inboundReferences: 1, distinctSourceDocuments: 1, outboundReferences: 0, lastActiveAt: '20260313213430' },
+        ],
+        communities: [
+          { id: 'community-doc-local-source', documentIds: ['doc-local-source', 'doc-local-target'], size: 2, hubDocumentIds: ['doc-local-source'], topTags: [], notebookIds: ['box-1'], missingTopicPage: true },
+        ],
+        bridgeDocuments: [],
+        orphans: [],
+        dormantDocuments: [],
+        propagationNodes: [],
+      } as any,
+      now: new Date('2026-03-13T22:02:45+08:00'),
+      timeRange: '7d',
+      dormantDays: 30,
+    })
+
+    expect(sections.references.items).toEqual([
+      expect.objectContaining({ documentId: 'doc-local-source', badge: '1 次参与' }),
+      expect.objectContaining({ documentId: 'doc-local-target', badge: '1 次参与' }),
+    ])
+  })
 })
 
 describe('buildSummaryCards', () => {

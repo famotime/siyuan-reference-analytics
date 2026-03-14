@@ -10,6 +10,13 @@ import {
 } from './analysis'
 import { collectReadMatches, type ReadCardMode } from './read-status'
 import { SUGGESTION_TYPE_LABELS } from './ui-copy'
+import {
+  compareSiyuanTimestamps as compareTimestamp,
+  formatCompactDate,
+  isTimestampInTrailingWindow,
+  normalizeTags,
+  resolveDocumentTitle as resolveTitle,
+} from './document-utils'
 import type { PluginConfig } from '@/types/config'
 
 export type SummaryCardKey =
@@ -437,20 +444,7 @@ function buildReadBadge(item: ReturnType<typeof collectReadMatches>[number]): st
 }
 
 function countDocumentTags(tags?: readonly string[] | string): number {
-  if (!tags) {
-    return 0
-  }
-  if (Array.isArray(tags)) {
-    return tags.map(tag => tag.trim()).filter(Boolean).length
-  }
-  if (typeof tags === 'string') {
-    return tags
-      .split(/[,\s#]+/)
-      .map(tag => tag.trim())
-      .filter(Boolean)
-      .length
-  }
-  return 0
+  return normalizeTags(tags).length
 }
 
 function filterActiveReferences(params: {
@@ -469,14 +463,8 @@ function filterActiveReferences(params: {
     if (params.timeRange === 'all') {
       return true
     }
-    const value = parseTimestamp(reference.sourceUpdated ?? '')
-    if (!value) {
-      return false
-    }
     const days = Number.parseInt(params.timeRange, 10)
-    const end = params.now.getTime()
-    const start = end - days * 24 * 60 * 60 * 1000
-    return value > start && value <= end
+    return isTimestampInTrailingWindow(reference.sourceUpdated ?? '', params.now, days)
   })
 }
 
@@ -505,34 +493,6 @@ function buildActiveDocumentCounts(references: ReferenceRecord[]): Map<string, {
   }
 
   return counts
-}
-
-function resolveTitle(document: DocumentRecord): string {
-  return document.title || document.name || document.content || document.hpath || document.id
-}
-
-function parseTimestamp(timestamp: string): number | null {
-  if (!timestamp || timestamp.length < 8) {
-    return null
-  }
-  const year = Number.parseInt(timestamp.slice(0, 4), 10)
-  const month = Number.parseInt(timestamp.slice(4, 6), 10) - 1
-  const day = Number.parseInt(timestamp.slice(6, 8), 10)
-  const hour = Number.parseInt(timestamp.slice(8, 10) || '0', 10)
-  const minute = Number.parseInt(timestamp.slice(10, 12) || '0', 10)
-  const second = Number.parseInt(timestamp.slice(12, 14) || '0', 10)
-  return Date.UTC(year, month, day, hour, minute, second)
-}
-
-function compareTimestamp(left: string, right: string): number {
-  return (parseTimestamp(left) ?? 0) - (parseTimestamp(right) ?? 0)
-}
-
-function formatCompactDate(timestamp?: string): string {
-  if (!timestamp || timestamp.length < 8) {
-    return '未知时间'
-  }
-  return `${timestamp.slice(0, 4)}-${timestamp.slice(4, 6)}-${timestamp.slice(6, 8)}`
 }
 
 function extractBadgeNumber(value?: string): number {

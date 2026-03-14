@@ -154,11 +154,17 @@ npm run build
 ## 关键目录
 
 - `src/App.vue`
-  - 主界面，包含筛选器、统计卡片、详情联动与路径查看。
+  - 主界面，包含筛选器、顶部操作区以及各 UI 子组件的组合。
 - `src/composables/use-analytics.ts`
-  - 分析状态组织、筛选、统计卡片、详情联动与交互动作。
+  - 主状态容器，负责把筛选、分析结果、watcher 和 UI 联动组装成统一的公开 API。
+- `src/composables/use-analytics-derived.ts`
+  - 纯派生选择器，负责标签选项、路径候选、孤立主题建议映射、详情计数与关联映射构建。
+- `src/composables/use-analytics-interactions.ts`
+  - 交互副作用控制器，负责关联同步和孤立文档主题建议的插入/撤销。
 - `src/analytics/analysis.ts`
   - 图分析核心逻辑。
+- `src/analytics/document-utils.ts`
+  - 共享基础 helper，统一标题回退、标签拆分、思源时间戳解析与窗口判断。
 - `src/analytics/siyuan-data.ts`
   - 从思源数据库读取文档与引用快照。
 - `src/analytics/internal-links.ts`
@@ -171,8 +177,14 @@ npm run build
   - 已读规则匹配逻辑。
 - `src/analytics/summary-details.ts`
   - 顶部统计卡片定义与详情数据构建。
+- `src/components/SummaryCardsGrid.vue`
+  - 顶部统计卡片区，负责拖拽排序和已读卡片切换按钮。
+- `src/components/SummaryDetailSection.vue`
+  - 详情区，负责列表、排行、传播路径与趋势详情的渲染。
 - `src/components/SettingPanel.vue`
   - 设置页，包含主题文档、统计卡片、已读规则等配置。
+- `src/components/setting-panel-data.ts`
+  - 设置页数据 helper，负责默认值修正以及笔记本/标签选项初始化。
 - `docs/思源笔记插件_PRD_引用网络分析器_Reference_Analytics.md`
   - 原始 PRD。
 - `docs/统计卡片规则与定义说明.md`
@@ -184,12 +196,16 @@ npm run build
 
 - 图分析结果与趋势分析
 - markdown fallback 引用采集
+- 共享标题/标签/时间戳 helper
 - 顶部统计卡片与详情生成
 - 主题文档识别与孤立文档修复建议
 - 卡片排序与面板折叠
 - 已读规则匹配
+- 主 composable 的派生选择器与交互动作
+- 统计卡片区与详情区的独立渲染组件
+- 设置页数据 helper
 
-主要测试文件集中在 `src/analytics/*.test.ts`、`src/components/*.test.ts` 与 `src/composables/use-analytics.test.ts`。
+主要测试文件集中在 `src/analytics/*.test.ts`、`src/components/*.test.ts`、`src/composables/use-analytics.test.ts` 与 `src/composables/use-analytics-derived.test.ts`。
 
 ## 当前状态与后续方向
 
@@ -202,10 +218,13 @@ npm run build
 - 顶部统计卡片点击联动详情
 - 主题文档修复建议
 - 已读文档规则与统计卡片
+- 分析层共享 helper 收敛
+- `useAnalyticsState` 的纯派生逻辑与副作用控制器拆分
+- `App.vue` 详情区与统计卡片区拆分为独立表现组件
+- 设置页数据准备逻辑下沉到独立 helper
 
 后续可优先继续增强：
 
 - 传播节点的证据解释细化
 - 更多 markdown 内部链接格式兼容
 - 更细的社区语义解释
-

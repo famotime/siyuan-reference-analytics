@@ -100,488 +100,65 @@
     </div>
 
     <template v-else-if="report && trends">
-      <div v-if="visibleSummaryCards.length" class="summary-grid">
-        <article
-          v-for="card in visibleSummaryCards"
-          :key="card.key"
-          :class="[
-            'summary-card',
-            'summary-card--interactive',
-            {
-              'summary-card--active': card.key === selectedSummaryCardKey,
-              'summary-card--dragging': card.key === draggedSummaryCardKey,
-              'summary-card--drop-target': card.key === dropTargetSummaryCardKey && card.key !== draggedSummaryCardKey,
-            },
-          ]"
-          :title="card.hint"
-          draggable="true"
-          @dragstart="handleSummaryCardDragStart(card.key, $event)"
-          @dragover.prevent="handleSummaryCardDragOver(card.key, $event)"
-          @drop.prevent="handleSummaryCardDrop(card.key)"
-          @dragend="handleSummaryCardDragEnd"
-        >
-          <div class="summary-card__frame">
-            <button
-              class="summary-card__main"
-              type="button"
-              @click="selectSummaryCard(card.key)"
-            >
-              <span class="summary-card__label">{{ card.label }}</span>
-              <strong class="summary-card__value">{{ card.value }}</strong>
-            </button>
-            <button
-              v-if="isReadCard(card.key)"
-              class="summary-card__toggle"
-              type="button"
-              :aria-label="readCardMode === 'read' ? '切换为未读文档' : '切换为已读文档'"
-              :title="readCardMode === 'read' ? '切换为未读文档' : '切换为已读文档'"
-              @click.stop="toggleReadCardMode"
-            >
-              <svg
-                class="summary-card__toggle-icon"
-                viewBox="0 0 16 16"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 5h8.5M9.5 2.5 12 5l-2.5 2.5M13 11H4.5M6.5 8.5 4 11l2.5 2.5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="1.4"
-                />
-              </svg>
-            </button>
-          </div>
-        </article>
-      </div>
+      <SummaryCardsGrid
+        v-if="visibleSummaryCards.length"
+        :cards="visibleSummaryCards"
+        :selected-summary-card-key="selectedSummaryCardKey"
+        :read-card-mode="readCardMode"
+        :on-select-summary-card="selectSummaryCard"
+        :on-toggle-read-card-mode="toggleReadCardMode"
+        :on-reorder-summary-card="reorderSummaryCard"
+      />
 
-      <section
+      <SummaryDetailSection
         v-if="visibleSummaryCards.length && selectedSummaryDetail"
-        class="panel"
-      >
-        <div class="panel-header">
-          <div>
-            <h2>{{ selectedSummaryDetail.title }}</h2>
-            <p>{{ selectedSummaryDetail.description }}</p>
-          </div>
-          <div class="panel-header__actions">
-            <span class="meta-text">{{ selectedSummaryCount }} 篇文档</span>
-            <button
-              class="panel-toggle"
-              type="button"
-              :aria-expanded="isPanelExpanded('summary-detail')"
-              :aria-label="isPanelExpanded('summary-detail') ? '折叠详情' : '展开详情'"
-              @click="togglePanel('summary-detail')"
-            >
-              {{ isPanelExpanded('summary-detail') ? '折叠' : '展开' }}
-              <span
-                class="panel-toggle__caret"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
-        </div>
-
-        <div
-          v-show="isPanelExpanded('summary-detail')"
-          class="summary-detail-body"
-        >
-          <template v-if="selectedSummaryDetail.key === 'orphans'">
-            <OrphanDetailPanel
-              :items="orphanDetailItems"
-              :orphan-sort="orphanSort"
-              :open-document="openDocument"
-              :on-update-orphan-sort="updateOrphanSort"
-              :on-toggle-theme-suggestion="toggleOrphanThemeSuggestion"
-              :is-theme-suggestion-active="isThemeSuggestionActive"
-            />
-          </template>
-          <template v-else-if="selectedSummaryDetail.key === 'dormant'">
-            <DormantDetailPanel
-              :items="selectedSummaryDetail.items"
-              :dormant-days="dormantDays"
-              :open-document="openDocument"
-              :on-update-dormant-days="updateDormantDays"
-            />
-          </template>
-          <template v-else-if="selectedSummaryDetail.kind === 'list'">
-            <div
-              v-if="selectedSummaryDetail.items.length"
-              class="summary-detail-list"
-            >
-              <article
-                v-for="item in selectedSummaryDetail.items"
-                :key="`${selectedSummaryDetail.key}-${item.documentId}`"
-                class="summary-detail-item"
-              >
-                <div class="summary-detail-item__header">
-                  <DocumentTitle
-                    :document-id="item.documentId"
-                    :title="item.title"
-                    :open-document="openDocument"
-                    :is-theme-document="item.isThemeDocument"
-                  />
-                  <span
-                    v-if="item.badge"
-                    class="badge"
-                  >
-                    {{ item.badge }}
-                  </span>
-                </div>
-                <p class="summary-detail-item__meta">
-                  {{ item.meta }}
-                </p>
-                <SuggestionCallout :suggestions="item.suggestions ?? []" />
-              </article>
-            </div>
-            <div
-              v-else
-              class="empty-state"
-            >
-              当前卡片下没有可展示的文档。
-            </div>
-          </template>
-          <template v-else-if="selectedSummaryDetail.kind === 'propagation'">
-            <div
-              v-if="selectedSummaryDetail.items.length"
-              class="summary-detail-list"
-            >
-              <article
-                v-for="item in selectedSummaryDetail.items"
-                :key="`${selectedSummaryDetail.key}-${item.documentId}`"
-                class="summary-detail-item"
-              >
-                <div class="summary-detail-item__header">
-                  <DocumentTitle
-                    :document-id="item.documentId"
-                    :title="item.title"
-                    :open-document="openDocument"
-                    :is-theme-document="item.isThemeDocument"
-                  />
-                  <span
-                    v-if="item.badge"
-                    class="badge"
-                  >
-                    {{ item.badge }}
-                  </span>
-                </div>
-                <p class="summary-detail-item__meta">
-                  {{ item.meta }}
-                </p>
-                <SuggestionCallout :suggestions="item.suggestions ?? []" />
-              </article>
-            </div>
-            <div
-              v-else
-              class="empty-state"
-            >
-              当前卡片下没有可展示的传播节点。
-            </div>
-
-            <div class="propagation-path">
-              <div class="propagation-path__header">
-                <h3>关系传播路径</h3>
-                <p>限定路径深度与范围，查看文档如何跨主题建立连接。</p>
-              </div>
-              <div class="path-controls">
-                <label>
-                  <span>范围</span>
-                  <select v-model="pathScope">
-                    <option value="focused">核心 + 桥接</option>
-                    <option value="all">当前筛选全部文档</option>
-                    <option value="community">当前社区</option>
-                  </select>
-                </label>
-                <label>
-                  <span>最大深度</span>
-                  <select v-model="maxPathDepth">
-                    <option :value="3">3</option>
-                    <option :value="4">4</option>
-                    <option :value="5">5</option>
-                    <option :value="6">6</option>
-                  </select>
-                </label>
-                <label>
-                  <span>起点</span>
-                  <select v-model="fromDocumentId">
-                    <option
-                      v-for="document in pathOptions"
-                      :key="document.id"
-                      :value="document.id"
-                    >
-                      {{ document.title }}
-                    </option>
-                  </select>
-                </label>
-                <label>
-                  <span>终点</span>
-                  <select v-model="toDocumentId">
-                    <option
-                      v-for="document in pathOptions"
-                      :key="document.id"
-                      :value="document.id"
-                    >
-                      {{ document.title }}
-                    </option>
-                  </select>
-                </label>
-              </div>
-
-              <div
-                v-if="pathChain.length"
-                class="path-chain"
-              >
-                <button
-                  v-for="documentId in pathChain"
-                  :key="documentId"
-                  class="path-node"
-                  type="button"
-                  @click="openDocument(documentId)"
-                >
-                  {{ resolveTitle(documentId) }}
-                </button>
-              </div>
-              <div
-                v-else
-                class="empty-state"
-              >
-                当前筛选条件下未找到可解释路径。
-              </div>
-            </div>
-          </template>
-          <template v-else-if="selectedSummaryDetail.kind === 'ranking'">
-            <RankingPanel
-              variant="detail"
-              :ranking="selectedSummaryDetail.ranking"
-              :panel-count="selectedSummaryDetail.ranking.length"
-              :snapshot-label="snapshotLabel"
-              :is-expanded="true"
-              :on-toggle-panel="() => {}"
-              :resolve-title="resolveTitle"
-              :format-timestamp="formatTimestamp"
-              :open-document="openDocument"
-              :toggle-link-panel="toggleLinkPanel"
-              :is-link-panel-expanded="isLinkPanelExpanded"
-              :resolve-link-associations="resolveLinkAssociations"
-              :toggle-link-group="toggleLinkGroup"
-              :is-link-group-expanded="isLinkGroupExpanded"
-              :is-syncing="isSyncing"
-              :sync-association="syncAssociation"
-            />
-          </template>
-          <template v-else-if="selectedSummaryDetail.kind === 'trends'">
-            <div class="trend-stats">
-              <article class="trend-stats__card summary-card">
-                <span class="trend-stats__label summary-card__label">当前窗口</span>
-                <strong class="trend-stats__value summary-card__value">{{ selectedSummaryDetail.trends.current.referenceCount }}</strong>
-              </article>
-              <article class="trend-stats__card summary-card">
-                <span class="trend-stats__label summary-card__label">前一窗口</span>
-                <strong class="trend-stats__value summary-card__value">{{ selectedSummaryDetail.trends.previous.referenceCount }}</strong>
-              </article>
-              <article class="trend-stats__card summary-card">
-                <span class="trend-stats__label summary-card__label">新增连接</span>
-                <strong class="trend-stats__value summary-card__value">{{ selectedSummaryDetail.trends.connectionChanges.newCount }}</strong>
-              </article>
-              <article class="trend-stats__card summary-card">
-                <span class="trend-stats__label summary-card__label">断裂连接</span>
-                <strong class="trend-stats__value summary-card__value">{{ selectedSummaryDetail.trends.connectionChanges.brokenCount }}</strong>
-              </article>
-            </div>
-
-            <div class="trend-grid">
-              <section class="trend-section-card trend-section-card--warm">
-                <p class="trend-section-card__eyebrow">Document Heat</p>
-                <h3 class="trend-section-card__title">升温文档</h3>
-                <div
-                  v-if="selectedSummaryDetail.trends.risingDocuments.length"
-                  class="trend-list"
-                >
-                  <article
-                    v-for="item in selectedSummaryDetail.trends.risingDocuments.slice(0, 5)"
-                    :key="item.documentId"
-                    class="trend-record"
-                  >
-                    <div class="trend-record__header">
-                      <DocumentTitle
-                        :document-id="item.documentId"
-                        :title="item.title"
-                        :open-document="openDocument"
-                        :is-theme-document="themeDocumentIds.has(item.documentId)"
-                      />
-                      <span class="trend-record__delta trend-record__delta--positive">{{ formatDelta(item.delta) }}</span>
-                    </div>
-                    <p class="trend-record__meta">
-                      当前窗口 {{ item.currentReferences }} · 前一窗口 {{ item.previousReferences }}
-                    </p>
-                  </article>
-                </div>
-                <p
-                  v-else
-                  class="trend-section-card__empty"
-                >
-                  没有明显升温文档。
-                </p>
-              </section>
-
-              <section class="trend-section-card trend-section-card--cool">
-                <p class="trend-section-card__eyebrow">Document Cooling</p>
-                <h3 class="trend-section-card__title">降温文档</h3>
-                <div
-                  v-if="selectedSummaryDetail.trends.fallingDocuments.length"
-                  class="trend-list"
-                >
-                  <article
-                    v-for="item in selectedSummaryDetail.trends.fallingDocuments.slice(0, 5)"
-                    :key="item.documentId"
-                    class="trend-record"
-                  >
-                    <div class="trend-record__header">
-                      <DocumentTitle
-                        :document-id="item.documentId"
-                        :title="item.title"
-                        :open-document="openDocument"
-                        :is-theme-document="themeDocumentIds.has(item.documentId)"
-                      />
-                      <span class="trend-record__delta trend-record__delta--negative">{{ formatDelta(item.delta) }}</span>
-                    </div>
-                    <p class="trend-record__meta">
-                      当前窗口 {{ item.currentReferences }} · 前一窗口 {{ item.previousReferences }}
-                    </p>
-                  </article>
-                </div>
-                <p
-                  v-else
-                  class="trend-section-card__empty"
-                >
-                  没有明显降温文档。
-                </p>
-              </section>
-
-              <section class="trend-section-card trend-section-card--accent">
-                <p class="trend-section-card__eyebrow">Community Lift</p>
-                <h3 class="trend-section-card__title">升温主题</h3>
-                <div
-                  v-if="selectedSummaryDetail.trends.risingCommunities.length"
-                  class="trend-list"
-                >
-                  <article
-                    v-for="community in selectedSummaryDetail.trends.risingCommunities.slice(0, 3)"
-                    :key="community.communityId"
-                    class="trend-record"
-                  >
-                    <div class="trend-record__header">
-                      <button
-                        class="trend-record__button"
-                        type="button"
-                        @click="selectCommunity(community.communityId)"
-                      >
-                        {{ community.topTags.join(' / ') || community.documentIds.map(resolveTitle).join(' / ') }}
-                      </button>
-                      <span class="trend-record__delta trend-record__delta--positive">{{ formatDelta(community.delta) }}</span>
-                    </div>
-                    <p class="trend-record__meta">
-                      当前窗口 {{ community.currentReferences }} · 前一窗口 {{ community.previousReferences }}
-                    </p>
-                  </article>
-                </div>
-                <p
-                  v-else
-                  class="trend-section-card__empty"
-                >
-                  没有明显升温主题。
-                </p>
-              </section>
-
-              <section class="trend-section-card trend-section-card--muted">
-                <p class="trend-section-card__eyebrow">Community Idle</p>
-                <h3 class="trend-section-card__title">低活跃主题</h3>
-                <div
-                  v-if="selectedSummaryDetail.trends.dormantCommunities.length"
-                  class="trend-list"
-                >
-                  <article
-                    v-for="community in selectedSummaryDetail.trends.dormantCommunities.slice(0, 3)"
-                    :key="community.communityId"
-                    class="trend-record"
-                  >
-                    <div class="trend-record__header">
-                      <button
-                        class="trend-record__button"
-                        type="button"
-                        @click="selectCommunity(community.communityId)"
-                      >
-                        {{ community.topTags.join(' / ') || community.documentIds.map(resolveTitle).join(' / ') }}
-                      </button>
-                      <span class="trend-record__badge">低活跃</span>
-                    </div>
-                    <p class="trend-record__meta">
-                      当前窗口 {{ community.currentReferences }} · 前一窗口 {{ community.previousReferences }}
-                    </p>
-                  </article>
-                </div>
-                <p
-                  v-else
-                  class="trend-section-card__empty"
-                >
-                  没有明显低活跃主题。
-                </p>
-              </section>
-
-              <section class="trend-section-card trend-section-card--neutral">
-                <p class="trend-section-card__eyebrow">Broken Paths</p>
-                <h3 class="trend-section-card__title">断裂连接</h3>
-                <div
-                  v-if="selectedSummaryDetail.trends.connectionChanges.brokenEdges.length"
-                  class="trend-list"
-                >
-                  <article
-                    v-for="edge in selectedSummaryDetail.trends.connectionChanges.brokenEdges.slice(0, 3)"
-                    :key="edge.documentIds.join('-')"
-                    class="trend-record"
-                  >
-                    <div class="trend-record__header">
-                      <button
-                        class="trend-record__button"
-                        type="button"
-                        @click="openDocument(edge.documentIds[0])"
-                      >
-                        {{ edge.documentIds.map(resolveTitle).join(' → ') }}
-                      </button>
-                      <span class="trend-record__badge">{{ edge.referenceCount }} 条</span>
-                    </div>
-                    <p class="trend-record__meta">
-                      点击打开路径起点文档，回溯断裂前后的关联关系。
-                    </p>
-                  </article>
-                </div>
-                <p
-                  v-else
-                  class="trend-section-card__empty"
-                >
-                  没有明显断裂连接。
-                </p>
-              </section>
-            </div>
-          </template>
-        </div>
-      </section>
+        :detail="selectedSummaryDetail"
+        :selected-summary-count="selectedSummaryCount"
+        :is-expanded="isPanelExpanded('summary-detail')"
+        :on-toggle-panel="() => togglePanel('summary-detail')"
+        :orphan-detail-items="orphanDetailItems"
+        :orphan-sort="orphanSort"
+        :on-update-orphan-sort="updateOrphanSort"
+        :dormant-days="dormantDays"
+        :on-update-dormant-days="updateDormantDays"
+        :open-document="openDocument"
+        :toggle-orphan-theme-suggestion="toggleOrphanThemeSuggestion"
+        :is-theme-suggestion-active="isThemeSuggestionActive"
+        :path-scope="pathScope"
+        :on-update-path-scope="updatePathScope"
+        :max-path-depth="maxPathDepth"
+        :on-update-max-path-depth="updateMaxPathDepth"
+        :from-document-id="fromDocumentId"
+        :on-update-from-document-id="updateFromDocumentId"
+        :to-document-id="toDocumentId"
+        :on-update-to-document-id="updateToDocumentId"
+        :path-options="pathOptions"
+        :path-chain="pathChain"
+        :resolve-title="resolveTitle"
+        :snapshot-label="snapshotLabel"
+        :format-timestamp="formatTimestamp"
+        :toggle-link-panel="toggleLinkPanel"
+        :is-link-panel-expanded="isLinkPanelExpanded"
+        :resolve-link-associations="resolveLinkAssociations"
+        :toggle-link-group="toggleLinkGroup"
+        :is-link-group-expanded="isLinkGroupExpanded"
+        :is-syncing="isSyncing"
+        :sync-association="syncAssociation"
+        :format-delta="formatDelta"
+        :theme-document-ids="themeDocumentIds"
+        :select-community="selectCommunity"
+      />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { openTab, showMessage, type Plugin } from 'siyuan'
 
-import type { SummaryCardKey } from '@/analytics/summary-details'
-import DormantDetailPanel from '@/components/DormantDetailPanel.vue'
-import DocumentTitle from '@/components/DocumentTitle.vue'
 import FilterSelect from '@/components/FilterSelect.vue'
-import OrphanDetailPanel from '@/components/OrphanDetailPanel.vue'
-import RankingPanel from '@/components/RankingPanel.vue'
-import SuggestionCallout from '@/components/SuggestionCallout.vue'
+import SummaryCardsGrid from '@/components/SummaryCardsGrid.vue'
+import SummaryDetailSection from '@/components/SummaryDetailSection.vue'
 import ThemeMultiSelect from '@/components/ThemeMultiSelect.vue'
 import { useAnalyticsState } from '@/composables/use-analytics'
 import { appendBlock, deleteBlock, getBlockKramdown, getChildBlocks, prependBlock, updateBlock } from '@/api'
@@ -664,9 +241,6 @@ const {
   isThemeSuggestionActive,
 } = analytics
 
-const draggedSummaryCardKey = ref<SummaryCardKey | ''>('')
-const dropTargetSummaryCardKey = ref<SummaryCardKey | ''>('')
-
 const visibleSummaryCards = computed(() => {
   if (!props.config.showSummaryCards) {
     return []
@@ -710,10 +284,6 @@ const tagFilterOptions = computed(() => tagOptions.value.map(tag => ({
   key: tag,
 })))
 
-function isReadCard(cardKey: SummaryCardKey) {
-  return cardKey === 'read'
-}
-
 watch(visibleSummaryCards, (cards) => {
   if (cards.length === 0) {
     return
@@ -731,37 +301,20 @@ function updateDormantDays(value: number) {
   dormantDays.value = value
 }
 
-function handleSummaryCardDragStart(cardKey: SummaryCardKey, event: DragEvent) {
-  draggedSummaryCardKey.value = cardKey
-  dropTargetSummaryCardKey.value = ''
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', cardKey)
-  }
+function updatePathScope(value: typeof pathScope.value) {
+  pathScope.value = value
 }
 
-function handleSummaryCardDragOver(cardKey: SummaryCardKey, event: DragEvent) {
-  if (!draggedSummaryCardKey.value || draggedSummaryCardKey.value === cardKey) {
-    return
-  }
-  dropTargetSummaryCardKey.value = cardKey
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move'
-  }
+function updateMaxPathDepth(value: number) {
+  maxPathDepth.value = value
 }
 
-function handleSummaryCardDrop(cardKey: SummaryCardKey) {
-  if (!draggedSummaryCardKey.value) {
-    return
-  }
-  reorderSummaryCard(draggedSummaryCardKey.value, cardKey)
-  draggedSummaryCardKey.value = ''
-  dropTargetSummaryCardKey.value = ''
+function updateFromDocumentId(value: string) {
+  fromDocumentId.value = value
 }
 
-function handleSummaryCardDragEnd() {
-  draggedSummaryCardKey.value = ''
-  dropTargetSummaryCardKey.value = ''
+function updateToDocumentId(value: string) {
+  toDocumentId.value = value
 }
 </script>
 

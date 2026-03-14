@@ -147,13 +147,9 @@
 import { onMounted, ref } from 'vue'
 
 import { lsNotebooks, sql } from '@/api'
+import { ensureReadMarkerDefaults, loadSettingPanelData, type NotebookOption } from '@/components/setting-panel-data'
 import ThemeMultiSelect from '@/components/ThemeMultiSelect.vue'
 import type { PluginConfig } from '@/types/config'
-
-interface NotebookOption {
-  id: string
-  name: string
-}
 
 const props = defineProps<{
   config: PluginConfig
@@ -165,58 +161,14 @@ const readTagOptions = ref<Array<{ value: string, label: string, key: string }>>
 ensureReadMarkerDefaults(props.config)
 
 onMounted(async () => {
-  const [notebookResult, tagResult] = await Promise.allSettled([
-    lsNotebooks(),
-    sql(`
-      SELECT tag
-      FROM blocks
-      WHERE type = 'd'
-        AND COALESCE(tag, '') <> ''
-      LIMIT 2000
-    `) as Promise<Array<{ tag: string | null }>>,
-  ])
+  const data = await loadSettingPanelData({
+    lsNotebooks,
+    sql: statement => sql(statement) as Promise<Array<{ tag: string | null }>>,
+  })
 
-  notebooks.value = notebookResult.status === 'fulfilled'
-    ? (notebookResult.value?.notebooks ?? []).map(notebook => ({
-        id: notebook.id,
-        name: notebook.name,
-      }))
-    : []
-
-  readTagOptions.value = tagResult.status === 'fulfilled'
-    ? collectTagOptions(tagResult.value ?? [])
-    : []
+  notebooks.value = data.notebooks
+  readTagOptions.value = data.readTagOptions
 })
-
-function ensureReadMarkerDefaults(config: PluginConfig) {
-  if (!Array.isArray(config.readTagNames)) {
-    config.readTagNames = []
-  }
-  if (typeof config.readTitlePrefixes !== 'string') {
-    config.readTitlePrefixes = ''
-  }
-  if (typeof config.readTitleSuffixes !== 'string') {
-    config.readTitleSuffixes = ''
-  }
-}
-
-function collectTagOptions(rows: Array<{ tag: string | null }>): Array<{ value: string, label: string, key: string }> {
-  const tags = new Set<string>()
-
-  for (const row of rows) {
-    for (const tag of (row.tag ?? '').split(/[,\s#]+/).map(item => item.trim()).filter(Boolean)) {
-      tags.add(tag)
-    }
-  }
-
-  return [...tags]
-    .sort((left, right) => left.localeCompare(right, 'zh-CN'))
-    .map(tag => ({
-      value: tag,
-      label: tag,
-      key: tag,
-    }))
-}
 </script>
 
 <style scoped>
