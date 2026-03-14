@@ -19,6 +19,7 @@ import {
 } from '@/analytics/orphan-theme-links'
 import { syncAssociation as syncAssociationCore, type LinkDirection } from '@/analytics/link-sync'
 import { buildPanelCounts } from '@/analytics/panel-counts'
+import { collectReadMatches, type ReadCardMode } from '@/analytics/read-status'
 import {
   DEFAULT_SUMMARY_CARD_ORDER,
   isSameSummaryCardOrder,
@@ -107,6 +108,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
   const pathScope = ref<PathScope>('focused')
   const maxPathDepth = ref(6)
   const selectedSummaryCardKey = ref<SummaryCardKey>('documents')
+  const readCardMode = ref<ReadCardMode>('unread')
   const summaryCardOrder = ref<SummaryCardKey[]>(normalizeSummaryCardOrder(params.config.summaryCardOrder))
   const panelCollapseState = ref<PanelCollapseState<PanelKey>>(buildPanelCollapseState(panelKeys))
   const expandedLinkPanels = ref(new Set<string>())
@@ -236,10 +238,16 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     if (!report.value || !trends.value) {
       return []
     }
+    const readMatches = collectReadMatches({
+      documents: filteredDocuments.value,
+      config: params.config,
+    })
     return buildSummaryCards({
       report: report.value,
       dormantDays: dormantDays.value,
       documentCount: filteredDocuments.value.length,
+      readDocumentCount: readMatches.length,
+      readCardMode: readCardMode.value,
       trends: trends.value,
     })
   })
@@ -260,6 +268,8 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
       filters: filters.value,
       themeDocumentIds: themeDocumentIds.value,
       dormantDays: dormantDays.value,
+      config: params.config,
+      readCardMode: readCardMode.value,
     })
   })
 
@@ -555,6 +565,10 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     selectedSummaryCardKey.value = cardKey
   }
 
+  function toggleReadCardMode() {
+    readCardMode.value = readCardMode.value === 'read' ? 'unread' : 'read'
+  }
+
   function persistSummaryCardOrder(nextOrder: SummaryCardKey[]) {
     if (isSameSummaryCardOrder(params.config.summaryCardOrder, nextOrder)) {
       return
@@ -789,6 +803,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     pathScope,
     maxPathDepth,
     selectedSummaryCardKey,
+    readCardMode,
     panelCollapseState,
     filters,
     notebookOptions,
@@ -819,6 +834,7 @@ export function useAnalyticsState(params: UseAnalyticsParams) {
     selectEvidence,
     selectCommunity,
     selectSummaryCard,
+    toggleReadCardMode,
     reorderSummaryCard,
     resetSummaryCardOrder,
     resolveLinkAssociations,

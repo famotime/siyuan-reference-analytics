@@ -92,9 +92,9 @@
 
     <template v-else-if="report && trends">
       <div v-if="visibleSummaryCards.length" class="summary-grid">
-        <button
+        <article
           v-for="card in visibleSummaryCards"
-          :key="card.label"
+          :key="card.key"
           :class="[
             'summary-card',
             'summary-card--interactive',
@@ -106,16 +106,45 @@
           ]"
           :title="card.hint"
           draggable="true"
-          type="button"
           @dragstart="handleSummaryCardDragStart(card.key, $event)"
           @dragover.prevent="handleSummaryCardDragOver(card.key, $event)"
           @drop.prevent="handleSummaryCardDrop(card.key)"
           @dragend="handleSummaryCardDragEnd"
-          @click="selectSummaryCard(card.key)"
         >
-          <span class="summary-card__label">{{ card.label }}</span>
-          <strong class="summary-card__value">{{ card.value }}</strong>
-        </button>
+          <div class="summary-card__frame">
+            <button
+              class="summary-card__main"
+              type="button"
+              @click="selectSummaryCard(card.key)"
+            >
+              <span class="summary-card__label">{{ card.label }}</span>
+              <strong class="summary-card__value">{{ card.value }}</strong>
+            </button>
+            <button
+              v-if="isReadCard(card.key)"
+              class="summary-card__toggle"
+              type="button"
+              :aria-label="readCardMode === 'read' ? '切换为未读文档' : '切换为已读文档'"
+              :title="readCardMode === 'read' ? '切换为未读文档' : '切换为已读文档'"
+              @click.stop="toggleReadCardMode"
+            >
+              <svg
+                class="summary-card__toggle-icon"
+                viewBox="0 0 16 16"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 5h8.5M9.5 2.5 12 5l-2.5 2.5M13 11H4.5M6.5 8.5 4 11l2.5 2.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.4"
+                />
+              </svg>
+            </button>
+          </div>
+        </article>
       </div>
 
       <section
@@ -584,6 +613,7 @@ const {
   pathScope,
   maxPathDepth,
   selectedSummaryCardKey,
+  readCardMode,
   notebookOptions,
   tagOptions,
   report,
@@ -603,6 +633,7 @@ const {
   selectEvidence,
   selectCommunity,
   selectSummaryCard,
+  toggleReadCardMode,
   reorderSummaryCard,
   resetSummaryCardOrder,
   resolveLinkAssociations,
@@ -668,6 +699,10 @@ const tagFilterOptions = computed(() => tagOptions.value.map(tag => ({
   label: tag,
   key: tag,
 })))
+
+function isReadCard(cardKey: SummaryCardKey) {
+  return cardKey === 'read'
+}
 
 watch(visibleSummaryCards, (cards) => {
   if (cards.length === 0) {
@@ -854,7 +889,8 @@ input {
 }
 
 .summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  align-items: stretch;
   margin-bottom: 24px;
 }
 
@@ -869,17 +905,16 @@ input {
 
 .summary-card {
   padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  min-width: 0;
+  height: 100%;
   text-align: left;
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  box-sizing: border-box;
 }
 
 .summary-card--interactive {
   width: 100%;
-  cursor: pointer;
-  font: inherit;
+  cursor: grab;
   color: inherit;
 }
 
@@ -909,6 +944,56 @@ input {
   font-size: 13px;
   color: var(--panel-muted);
   font-weight: 500;
+}
+
+.summary-card__frame {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.summary-card__main {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-card__toggle {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid color-mix(in srgb, var(--b3-theme-primary) 16%, transparent);
+  border-radius: 999px;
+  padding: 0;
+  background: color-mix(in srgb, var(--b3-theme-primary) 6%, var(--surface-card));
+  color: var(--panel-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+.summary-card__toggle:hover {
+  color: var(--b3-theme-primary);
+  border-color: color-mix(in srgb, var(--b3-theme-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--b3-theme-primary) 12%, var(--surface-card));
+  transform: rotate(18deg);
+}
+
+.summary-card__toggle-icon {
+  width: 10px;
+  height: 10px;
 }
 
 .summary-card__value {

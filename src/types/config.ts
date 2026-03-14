@@ -9,6 +9,9 @@ export interface PluginConfig {
   themeDocumentPath: string
   themeNamePrefix: string
   themeNameSuffix: string
+  readTagNames?: string[]
+  readTitlePrefixes?: string
+  readTitleSuffixes?: string
   summaryCardOrder?: string[]
 }
 
@@ -23,5 +26,8 @@ export const DEFAULT_CONFIG: PluginConfig = {
   themeDocumentPath: '',
   themeNamePrefix: '',
   themeNameSuffix: '',
+  readTagNames: [],
+  readTitlePrefixes: '',
+  readTitleSuffixes: '',
   summaryCardOrder: undefined,
 }

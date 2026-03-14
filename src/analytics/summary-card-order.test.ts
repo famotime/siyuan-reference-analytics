@@ -16,12 +16,14 @@ describe('summary card order', () => {
     expect(normalizeSummaryCardOrder([
       'orphans',
       'documents',
+      'read',
       'orphans',
       'unknown-card',
       'ranking',
     ])).toEqual([
       'orphans',
       'documents',
+      'read',
       'ranking',
       'references',
       'trends',
@@ -40,6 +42,7 @@ describe('summary card order', () => {
     })).toEqual([
       'orphans',
       'documents',
+      'read',
       'references',
       'ranking',
       'trends',

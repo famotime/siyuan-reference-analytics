@@ -2,6 +2,7 @@ import type { SummaryCardItem, SummaryCardKey } from './summary-details'
 
 export const DEFAULT_SUMMARY_CARD_ORDER: SummaryCardKey[] = [
   'documents',
+  'read',
   'references',
   'ranking',
   'trends',

@@ -8,10 +8,13 @@ import {
   type TrendReport,
   filterDocumentsByTimeRange,
 } from './analysis'
+import { collectReadMatches, type ReadCardMode } from './read-status'
 import { SUGGESTION_TYPE_LABELS } from './ui-copy'
+import type { PluginConfig } from '@/types/config'
 
 export type SummaryCardKey =
   | 'documents'
+  | 'read'
   | 'references'
   | 'ranking'
   | 'trends'
@@ -83,11 +86,16 @@ export function buildSummaryCards(params: {
   report: ReferenceGraphReport
   dormantDays: number
   documentCount?: number
+  readDocumentCount?: number
+  readCardMode?: ReadCardMode
   trends?: TrendReport | null
 }): SummaryCardItem[] {
   const trendCount = params.trends
     ? params.trends.risingDocuments.length + params.trends.fallingDocuments.length
     : 0
+  const readCardMode = params.readCardMode ?? 'unread'
+  const readDocumentCount = params.readDocumentCount ?? 0
+  const unreadDocumentCount = Math.max((params.documentCount ?? params.report.summary.totalDocuments) - readDocumentCount, 0)
 
   return [
     {
@@ -95,6 +103,14 @@ export function buildSummaryCards(params: {
       label: '文档样本',
       value: (params.documentCount ?? params.report.summary.totalDocuments).toString(),
       hint: '命中当前筛选条件的文档数',
+    },
+    {
+      key: 'read',
+      label: readCardMode === 'read' ? '已读文档' : '未读文档',
+      value: (readCardMode === 'read' ? readDocumentCount : unreadDocumentCount).toString(),
+      hint: readCardMode === 'read'
+        ? '命中已读标记规则的文档数'
+        : '未命中已读标记规则的文档数',
     },
     {
       key: 'references',
@@ -157,6 +173,8 @@ export function buildSummaryDetailSections(params: {
   filters?: AnalyticsFilters
   themeDocumentIds?: Iterable<string>
   dormantDays: number
+  config?: Pick<PluginConfig, 'readTagNames' | 'readTitlePrefixes' | 'readTitleSuffixes'>
+  readCardMode?: ReadCardMode
 }): Record<SummaryCardKey, SummaryDetailSection> {
   const filteredDocuments = filterDocumentsByTimeRange({
     documents: params.documents,
@@ -175,6 +193,22 @@ export function buildSummaryDetailSections(params: {
   const activeCounts = buildActiveDocumentCounts(activeReferences)
   const suggestionMap = buildSuggestionMap(params.report)
   const themeDocumentIdSet = new Set(params.themeDocumentIds ?? [])
+  const readMatches = collectReadMatches({
+    documents: filteredDocuments,
+    config: params.config,
+  })
+  const readCardMode = params.readCardMode ?? 'unread'
+  const readDocumentIdSet = new Set(readMatches.map(item => item.documentId))
+  const unreadItems = filteredDocuments
+    .filter(document => !readDocumentIdSet.has(document.id))
+    .sort((left, right) => compareTimestamp(right.updated ?? '', left.updated ?? '') || resolveTitle(left).localeCompare(resolveTitle(right), 'zh-CN'))
+    .map(document => ({
+      documentId: document.id,
+      title: resolveTitle(document),
+      meta: `未命中已读标签或标题规则 · 最近更新 ${formatCompactDate(document.updated)}`,
+      badge: '待标记',
+      isThemeDocument: themeDocumentIdSet.has(document.id),
+    }))
 
   return {
     documents: {
@@ -190,6 +224,23 @@ export function buildSummaryDetailSections(params: {
           meta: `${document.hpath || document.path} · 最近更新 ${formatCompactDate(document.updated)}`,
           isThemeDocument: themeDocumentIdSet.has(document.id),
         })),
+    },
+    read: {
+      key: 'read',
+      title: readCardMode === 'read' ? '已读文档详情' : '未读文档详情',
+      description: readCardMode === 'read'
+        ? '命中已读标签或标题规则的文档。'
+        : '未命中已读标签或标题规则的文档。',
+      kind: 'list',
+      items: readCardMode === 'read'
+        ? readMatches.map(item => ({
+            documentId: item.documentId,
+            title: item.title,
+            meta: buildReadMeta(item),
+            badge: buildReadBadge(item),
+            isThemeDocument: themeDocumentIdSet.has(item.documentId),
+          }))
+        : unreadItems,
     },
     references: {
       key: 'references',
@@ -347,6 +398,35 @@ function buildPropagationSuggestion(item: ReferenceGraphReport['propagationNodes
     label: '传播优化',
     text: `位于 ${item.pathPairCount} 条关键最短路径上，覆盖 ${item.focusDocumentCount} 个焦点文档${bridgeHint}，建议补充路径说明与上下游导航。`,
   }
+}
+
+function buildReadMeta(item: ReturnType<typeof collectReadMatches>[number]): string {
+  const parts: string[] = []
+
+  if (item.matchedTags.length) {
+    parts.push(`命中标签：${item.matchedTags.join(' / ')}`)
+  }
+  if (item.matchedPrefixes.length) {
+    parts.push(`命中前缀：${item.matchedPrefixes.join(' / ')}`)
+  }
+  if (item.matchedSuffixes.length) {
+    parts.push(`命中后缀：${item.matchedSuffixes.join(' / ')}`)
+  }
+
+  return parts.join(' · ')
+}
+
+function buildReadBadge(item: ReturnType<typeof collectReadMatches>[number]): string | undefined {
+  const badges: string[] = []
+
+  if (item.matchedTags.length) {
+    badges.push('标签命中')
+  }
+  if (item.matchedPrefixes.length || item.matchedSuffixes.length) {
+    badges.push('标题命中')
+  }
+
+  return badges.join(' / ') || undefined
 }
 
 function filterActiveReferences(params: {

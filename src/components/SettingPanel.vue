@@ -99,6 +99,43 @@
 
     <div class="setting-group">
       <div class="setting-header">
+        <h3>已读标记</h3>
+        <p>定义已读文档判定规则，命中任一标签、标题前缀或标题后缀即计为已读。</p>
+      </div>
+      <div class="setting-form">
+        <label class="setting-field setting-field--full">
+          <span>已读标签</span>
+          <div class="setting-select-shell">
+            <ThemeMultiSelect
+              v-model="config.readTagNames"
+              :options="readTagOptions"
+              all-label="全部未选"
+              empty-label="暂无可选标签"
+              selection-unit="个标签"
+            />
+          </div>
+        </label>
+        <label class="setting-field">
+          <span>标题前缀</span>
+          <input
+            v-model.trim="config.readTitlePrefixes"
+            placeholder="多个前缀用 | 分隔，例如 已读-|三星-"
+            type="text"
+          >
+        </label>
+        <label class="setting-field">
+          <span>标题后缀</span>
+          <input
+            v-model.trim="config.readTitleSuffixes"
+            placeholder="多个后缀用 | 分隔，例如 -已读|-五星"
+            type="text"
+          >
+        </label>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-header">
         <h3>传播与链路</h3>
         <p>传播节点详情中将包含关系传播路径视图。</p>
       </div>
@@ -109,7 +146,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { lsNotebooks } from '@/api'
+import { lsNotebooks, sql } from '@/api'
+import ThemeMultiSelect from '@/components/ThemeMultiSelect.vue'
 import type { PluginConfig } from '@/types/config'
 
 interface NotebookOption {
@@ -117,27 +155,75 @@ interface NotebookOption {
   name: string
 }
 
-defineProps<{
+const props = defineProps<{
   config: PluginConfig
 }>()
 
 const notebooks = ref<NotebookOption[]>([])
+const readTagOptions = ref<Array<{ value: string, label: string, key: string }>>([])
+
+ensureReadMarkerDefaults(props.config)
 
 onMounted(async () => {
-  try {
-    const response = await lsNotebooks()
-    notebooks.value = (response?.notebooks ?? []).map(notebook => ({
-      id: notebook.id,
-      name: notebook.name,
-    }))
-  } catch {
-    notebooks.value = []
-  }
+  const [notebookResult, tagResult] = await Promise.allSettled([
+    lsNotebooks(),
+    sql(`
+      SELECT tag
+      FROM blocks
+      WHERE type = 'd'
+        AND COALESCE(tag, '') <> ''
+      LIMIT 2000
+    `) as Promise<Array<{ tag: string | null }>>,
+  ])
+
+  notebooks.value = notebookResult.status === 'fulfilled'
+    ? (notebookResult.value?.notebooks ?? []).map(notebook => ({
+        id: notebook.id,
+        name: notebook.name,
+      }))
+    : []
+
+  readTagOptions.value = tagResult.status === 'fulfilled'
+    ? collectTagOptions(tagResult.value ?? [])
+    : []
 })
+
+function ensureReadMarkerDefaults(config: PluginConfig) {
+  if (!Array.isArray(config.readTagNames)) {
+    config.readTagNames = []
+  }
+  if (typeof config.readTitlePrefixes !== 'string') {
+    config.readTitlePrefixes = ''
+  }
+  if (typeof config.readTitleSuffixes !== 'string') {
+    config.readTitleSuffixes = ''
+  }
+}
+
+function collectTagOptions(rows: Array<{ tag: string | null }>): Array<{ value: string, label: string, key: string }> {
+  const tags = new Set<string>()
+
+  for (const row of rows) {
+    for (const tag of (row.tag ?? '').split(/[,\s#]+/).map(item => item.trim()).filter(Boolean)) {
+      tags.add(tag)
+    }
+  }
+
+  return [...tags]
+    .sort((left, right) => left.localeCompare(right, 'zh-CN'))
+    .map(tag => ({
+      value: tag,
+      label: tag,
+      key: tag,
+    }))
+}
 </script>
 
 <style scoped>
 .setting-panel {
+  --panel-border: color-mix(in srgb, var(--b3-theme-on-background) 8%, transparent);
+  --surface-card-strong: color-mix(in srgb, var(--b3-theme-surface) 96%, var(--b3-theme-background));
+  --surface-card-soft: color-mix(in srgb, var(--b3-theme-surface) 90%, var(--b3-theme-background));
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -237,10 +323,15 @@ onMounted(async () => {
   color: color-mix(in srgb, var(--b3-theme-on-background) 72%, transparent);
 }
 
+.setting-field--full {
+  grid-column: 1 / -1;
+}
+
 .setting-field span {
   font-weight: 500;
 }
 
+.setting-select-shell,
 .setting-field input,
 .setting-field select {
   width: 100%;
@@ -250,6 +341,10 @@ onMounted(async () => {
   color: var(--b3-theme-on-background);
   padding: 10px 12px;
   box-sizing: border-box;
+}
+
+.setting-select-shell {
+  padding: 10px 12px;
 }
 
 @media (max-width: 720px) {

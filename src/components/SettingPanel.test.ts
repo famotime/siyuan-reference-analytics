@@ -6,6 +6,7 @@ vi.mock('@/api', () => ({
   lsNotebooks: async () => ({
     notebooks: [],
   }),
+  sql: async () => [],
 }))
 
 import SettingPanel from './SettingPanel.vue'
@@ -25,6 +26,9 @@ describe('SettingPanel', () => {
           themeDocumentPath: '/专题',
           themeNamePrefix: '主题-',
           themeNameSuffix: '-索引',
+          readTagNames: ['已读'],
+          readTitlePrefixes: '已读-|三星-',
+          readTitleSuffixes: '-五星',
         },
       }),
     })
@@ -35,6 +39,10 @@ describe('SettingPanel', () => {
     expect(html).toContain('主题文档路径')
     expect(html).toContain('名称前缀')
     expect(html).toContain('名称后缀')
+    expect(html).toContain('已读标记')
+    expect(html).toContain('已读标签')
+    expect(html).toContain('标题前缀')
+    expect(html).toContain('标题后缀')
     expect(html).not.toContain('整理建议卡片')
   })
 })

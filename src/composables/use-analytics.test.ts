@@ -65,6 +65,7 @@ describe('useAnalyticsState', () => {
     expect(state.summaryCards.value.map(card => card.key)).toEqual([
       'orphans',
       'documents',
+      'read',
       'references',
       'ranking',
       'trends',
@@ -88,7 +89,10 @@ describe('useAnalyticsState', () => {
       themeDocumentPath: '/专题',
       themeNamePrefix: '主题-',
       themeNameSuffix: '-索引',
-      summaryCardOrder: ['orphans', 'documents', 'references', 'ranking', 'trends', 'communities', 'dormant', 'bridges', 'propagation'],
+      summaryCardOrder: ['orphans', 'documents', 'read', 'references', 'ranking', 'trends', 'communities', 'dormant', 'bridges', 'propagation'],
+      readTagNames: ['note'],
+      readTitlePrefixes: '',
+      readTitleSuffixes: '',
     }
 
     const state = useAnalyticsState({
@@ -117,6 +121,7 @@ describe('useAnalyticsState', () => {
 
     expect(state.summaryCards.value.map(card => card.key)).toEqual([
       'documents',
+      'read',
       'references',
       'ranking',
       'trends',
@@ -139,10 +144,13 @@ describe('useAnalyticsState', () => {
           showOrphanBridge: true,
           showTrends: true,
           showPropagation: true,
-        themeNotebookId: 'box-1',
-        themeDocumentPath: '/专题',
-        themeNamePrefix: '主题-',
-        themeNameSuffix: '-索引',
+          themeNotebookId: 'box-1',
+          themeDocumentPath: '/专题',
+          themeNamePrefix: '主题-',
+          themeNameSuffix: '-索引',
+          readTagNames: ['note'],
+          readTitlePrefixes: '',
+          readTitleSuffixes: '',
       },
       loadSnapshot: async () => snapshot as any,
       nowProvider: () => now,
@@ -161,10 +169,74 @@ describe('useAnalyticsState', () => {
     await nextTick()
 
     const documentCard = state.summaryCards.value.find(card => card.key === 'documents')
+    const readCard = state.summaryCards.value.find(card => card.key === 'read')
     expect(documentCard?.value).toBe('7')
+    expect(readCard?.label).toBe('未读文档')
+    expect(readCard?.value).toBe('5')
     expect(state.report.value?.ranking.map(item => item.documentId)).toEqual(['doc-b'])
     expect(state.selectedEvidenceDocument.value).toBe('doc-b')
     expect(state.themeOptions.value.map(item => item.label)).toEqual(['机器学习', 'AI'])
+  })
+
+  it('toggles the read card between unread and read modes', async () => {
+    const state = useAnalyticsState({
+      plugin: { eventBus: { on: () => {}, off: () => {} }, app: {} } as any,
+      config: {
+        showSummaryCards: true,
+        showRanking: true,
+        showCommunities: true,
+        showOrphanBridge: true,
+        showTrends: true,
+        showPropagation: true,
+        themeNotebookId: 'box-1',
+        themeDocumentPath: '/专题',
+        themeNamePrefix: '主题-',
+        themeNameSuffix: '-索引',
+        readTagNames: ['note'],
+        readTitlePrefixes: '',
+        readTitleSuffixes: '',
+      },
+      loadSnapshot: async () => snapshot as any,
+      nowProvider: () => now,
+      createActiveDocumentSync: () => () => {},
+      showMessage: () => {},
+      openTab: () => {},
+      appendBlock: async () => [],
+      prependBlock: async () => [],
+      deleteBlock: async () => [],
+      updateBlock: async () => [],
+      getChildBlocks: async () => [],
+      getBlockKramdown: async () => ({ id: '', kramdown: '' }),
+    })
+
+    await state.refresh()
+    await nextTick()
+
+    state.selectedSummaryCardKey.value = 'read'
+    await nextTick()
+
+    expect(state.selectedSummaryDetail.value).toEqual(expect.objectContaining({
+      title: '未读文档详情',
+      kind: 'list',
+      items: expect.arrayContaining([
+        expect.objectContaining({ documentId: 'doc-theme-ai', badge: '待标记' }),
+      ]),
+    }))
+
+    state.toggleReadCardMode()
+    await nextTick()
+
+    expect(state.summaryCards.value.find(card => card.key === 'read')).toEqual(expect.objectContaining({
+      label: '已读文档',
+      value: '2',
+    }))
+    expect(state.selectedSummaryDetail.value).toEqual(expect.objectContaining({
+      title: '已读文档详情',
+      kind: 'list',
+      items: expect.arrayContaining([
+        expect.objectContaining({ documentId: 'doc-a', badge: '标签命中' }),
+      ]),
+    }))
   })
 
   it('uses default snapshot loader when not provided', async () => {

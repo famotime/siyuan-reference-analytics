@@ -19,4 +19,22 @@ describe('App trend detail layout', () => {
     expect(source).toContain('@dragstart=')
     expect(source).toContain('@drop.prevent=')
   })
+
+  it('renders a toggle control for switching the read card between unread and read', async () => {
+    const source = await readFile(new URL('./App.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('summary-card__toggle')
+    expect(source).toContain('toggleReadCardMode')
+    expect(source).toContain('isReadCard(card.key)')
+  })
+
+  it('uses an adaptive summary grid and a compact read-card toggle button', async () => {
+    const source = await readFile(new URL('./App.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));')
+    expect(source).toContain('width: 20px;')
+    expect(source).toContain('height: 20px;')
+    expect(source).toContain('width: 10px;')
+    expect(source).toContain('height: 10px;')
+  })
 })

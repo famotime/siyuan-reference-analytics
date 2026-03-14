@@ -19,6 +19,7 @@ const report = {
     totalDocuments: 3,
     analyzedDocuments: 3,
     totalReferences: 1,
+    readCount: 1,
     orphanCount: 1,
     communityCount: 1,
     dormantCount: 1,
@@ -100,6 +101,12 @@ describe('buildSummaryDetailSections', () => {
       trends: trends as any,
       themeDocumentIds: new Set(['doc-b']),
       dormantDays: 30,
+      config: {
+        readTagNames: ['topic'],
+        readTitlePrefixes: '',
+        readTitleSuffixes: '',
+      } as any,
+      readCardMode: 'read',
     })
 
     expect(sections.orphans.kind).toBe('list')
@@ -150,6 +157,45 @@ describe('buildSummaryDetailSections', () => {
       }),
     ])
     expect(sections.trends.kind).toBe('trends')
+    expect((sections as Record<string, any>).read).toEqual(expect.objectContaining({
+      key: 'read',
+      kind: 'list',
+      items: [
+        expect.objectContaining({
+          documentId: 'doc-b',
+          title: 'Beta',
+          badge: '标签命中',
+          meta: '命中标签：topic',
+          isThemeDocument: true,
+        }),
+      ],
+    }))
+  })
+
+  it('builds unread document details by default for the read card slot', () => {
+    const sections = buildSummaryDetailSections({
+      documents: [...documents],
+      references: [...references],
+      report: report as any,
+      now,
+      timeRange: 'all',
+      themeDocumentIds: new Set(['doc-b']),
+      dormantDays: 30,
+      config: {
+        readTagNames: ['topic'],
+        readTitlePrefixes: '',
+        readTitleSuffixes: '',
+      } as any,
+    })
+
+    expect((sections as Record<string, any>).read).toEqual(expect.objectContaining({
+      key: 'read',
+      title: '未读文档详情',
+      items: [
+        expect.objectContaining({ documentId: 'doc-a', badge: '待标记' }),
+        expect.objectContaining({ documentId: 'doc-c', badge: '待标记' }),
+      ],
+    }))
   })
 
   it('deduplicates inbound and outbound counts by document pairs', () => {
@@ -199,15 +245,40 @@ describe('buildSummaryCards', () => {
     const cards = buildSummaryCards({
       report: report as any,
       dormantDays: 45,
+      documentCount: 5,
+      readDocumentCount: 2,
       trends: trends as any,
     })
 
     const dormant = cards.find(card => card.key === 'dormant')
+    const read = cards.find(card => card.key === 'read')
 
     expect(dormant).toEqual(expect.objectContaining({
       label: '沉没文档',
       value: report.summary.dormantCount.toString(),
       hint: '超过 45 天未产生有效连接',
+    }))
+    expect(read).toEqual(expect.objectContaining({
+      label: '未读文档',
+      value: '3',
+      hint: '未命中已读标记规则的文档数',
+    }))
+  })
+
+  it('can build the read card in read mode explicitly', () => {
+    const cards = buildSummaryCards({
+      report: report as any,
+      dormantDays: 30,
+      documentCount: 5,
+      readDocumentCount: 2,
+      readCardMode: 'read',
+      trends: trends as any,
+    })
+
+    expect(cards.find(card => card.key === 'read')).toEqual(expect.objectContaining({
+      label: '已读文档',
+      value: '2',
+      hint: '命中已读标记规则的文档数',
     }))
   })
 
