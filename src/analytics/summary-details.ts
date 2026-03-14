@@ -46,6 +46,9 @@ export interface DetailSuggestion {
 }
 
 export interface RankingDetailItem extends RankingItem {
+  tagCount: number
+  createdAt: string
+  updatedAt: string
   isThemeDocument?: boolean
   suggestions?: DetailSuggestion[]
 }
@@ -270,9 +273,13 @@ export function buildSummaryDetailSections(params: {
       description: '被引用频次最高的核心文档。',
       kind: 'ranking',
       ranking: params.report.ranking.map((item) => {
+        const document = documentMap.get(item.documentId)
         const isThemeDocument = themeDocumentIdSet.has(item.documentId)
         return {
           ...item,
+          tagCount: countDocumentTags(document?.tags),
+          createdAt: document?.created ?? '',
+          updatedAt: document?.updated ?? '',
           isThemeDocument,
           suggestions: isThemeDocument ? [] : resolveSuggestions(suggestionMap, item.documentId, 'promote-hub'),
         }
@@ -427,6 +434,23 @@ function buildReadBadge(item: ReturnType<typeof collectReadMatches>[number]): st
   }
 
   return badges.join(' / ') || undefined
+}
+
+function countDocumentTags(tags?: readonly string[] | string): number {
+  if (!tags) {
+    return 0
+  }
+  if (Array.isArray(tags)) {
+    return tags.map(tag => tag.trim()).filter(Boolean).length
+  }
+  if (typeof tags === 'string') {
+    return tags
+      .split(/[,\s#]+/)
+      .map(tag => tag.trim())
+      .filter(Boolean)
+      .length
+  }
+  return 0
 }
 
 function filterActiveReferences(params: {

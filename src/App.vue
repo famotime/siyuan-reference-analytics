@@ -1,12 +1,21 @@
 <template>
   <div class="reference-analytics">
     <div class="hero">
-      <div>
-        <p class="eyebrow">Context lens</p>
-        <h1>脉络镜</h1>
-        <p class="hero-copy">
-          用文档级引用网络识别核心节点、主题社区、孤立内容和可执行整理动作。
-        </p>
+      <div class="hero__intro">
+        <div class="hero__copy-block">
+          <p class="eyebrow">Context lens</p>
+          <h1>脉络镜</h1>
+          <p class="hero-copy">
+            让隐没的知识，重现脉络
+          </p>
+        </div>
+        <div class="hero__icon-shell">
+          <img
+            class="hero__icon"
+            :src="pluginIconUrl"
+            alt="脉络镜插件图标"
+          >
+        </div>
       </div>
       <div class="hero__actions">
         <button
@@ -577,6 +586,7 @@ import ThemeMultiSelect from '@/components/ThemeMultiSelect.vue'
 import { useAnalyticsState } from '@/composables/use-analytics'
 import { appendBlock, deleteBlock, getBlockKramdown, getChildBlocks, prependBlock, updateBlock } from '@/api'
 import type { PluginConfig } from '@/types/config'
+import pluginIconUrl from '../icon.png'
 
 const props = defineProps<{
   plugin: Plugin
@@ -791,6 +801,31 @@ function handleSummaryCardDragEnd() {
   margin-bottom: 24px;
 }
 
+.hero__intro {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.hero__copy-block {
+  min-width: 0;
+}
+
+.hero__icon-shell {
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.hero__icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .hero__actions {
   display: flex;
   flex-direction: column;
@@ -904,7 +939,7 @@ input {
 }
 
 .summary-card {
-  padding: 20px;
+  padding: 10px;
   min-width: 0;
   height: 100%;
   text-align: left;
@@ -1432,11 +1467,19 @@ input {
   border: 0;
   cursor: pointer;
   font: inherit;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: opacity 0.2s, background-color 0.2s;
   font-weight: 500;
 }
 
 .action-button {
+  min-width: 108px;
   padding: 10px 18px;
   border-radius: 8px;
   background: var(--b3-theme-primary);
@@ -1455,6 +1498,7 @@ input {
 }
 
 .ghost-button {
+  min-width: 108px;
   padding: 6px 12px;
   border-radius: 6px;
   background: color-mix(in srgb, var(--b3-theme-primary) 8%, transparent);
@@ -1503,6 +1547,10 @@ input {
   .hero {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .hero__intro {
+    justify-content: space-between;
   }
 
   .hero__actions {

@@ -44,13 +44,18 @@
             :is-theme-document="item.isThemeDocument"
           />
           <div class="ranking-item__meta">
-            <span>{{ item.inboundReferences }} 次引用</span>
+            <span>{{ item.inboundReferences }} 个反链</span>
             <span>{{ item.distinctSourceDocuments }} 个来源文档</span>
-            <span>{{ formatTimestamp(item.lastActiveAt) }}</span>
+            <span>{{ item.tagCount }} 个标签</span>
+            <span>{{ item.outboundReferences }} 个正链</span>
+          </div>
+          <div class="ranking-item__timestamps">
+            <span>创建：{{ formatTimestamp(item.createdAt) }}</span>
+            <span>更新：{{ formatTimestamp(item.updatedAt) }}</span>
           </div>
           <div class="ranking-item__actions">
             <button
-              class="ghost-button"
+              class="ghost-button ghost-button--filled"
               type="button"
               @click="toggleLinkPanel(item.documentId)"
             >
@@ -281,7 +286,8 @@ function resolveAssociations(documentId: string): LinkAssociations {
 .panel-header p,
 .meta-text,
 .empty-inline,
-.ranking-item__meta {
+.ranking-item__meta,
+.ranking-item__timestamps {
   color: var(--panel-muted);
   font-size: 13px;
 }
@@ -350,10 +356,15 @@ function resolveAssociations(documentId: string): LinkAssociations {
 }
 
 .ranking-item__meta,
+.ranking-item__timestamps,
 .ranking-item__actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.ranking-item__timestamps {
+  row-gap: 4px;
 }
 
 .ghost-button {
@@ -368,6 +379,15 @@ function resolveAssociations(documentId: string): LinkAssociations {
 
 .ghost-button:hover {
   background: color-mix(in srgb, var(--b3-theme-primary) 15%, transparent);
+}
+
+.ghost-button--filled {
+  background: color-mix(in srgb, var(--b3-theme-primary) 9%, var(--surface-card));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 50%, transparent);
+}
+
+.ghost-button--filled:hover {
+  background: color-mix(in srgb, var(--b3-theme-primary) 16%, var(--surface-card));
 }
 
 .ghost-button:disabled {

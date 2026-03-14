@@ -37,4 +37,19 @@ describe('App trend detail layout', () => {
     expect(source).toContain('width: 10px;')
     expect(source).toContain('height: 10px;')
   })
+
+  it('renders the plugin icon in the hero area and keeps top action labels on one line', async () => {
+    const source = await readFile(new URL('./App.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('class="hero__icon"')
+    expect(source).toContain('alt="脉络镜插件图标"')
+    expect(source).toContain('white-space: nowrap;')
+    expect(source).toContain(`.hero__intro {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;`)
+    expect(source).not.toContain('radial-gradient(circle at 30% 30%')
+    expect(source).not.toContain('border: 1px solid color-mix(in srgb, var(--accent-cool) 18%, var(--panel-border));')
+  })
 })

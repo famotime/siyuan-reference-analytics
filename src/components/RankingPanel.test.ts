@@ -4,6 +4,13 @@ import { renderToString } from '@vue/server-renderer'
 
 import RankingPanel from './RankingPanel.vue'
 
+function formatDate(timestamp?: string) {
+  if (!timestamp || timestamp.length < 8) {
+    return '未知时间'
+  }
+  return `${timestamp.slice(0, 4)}-${timestamp.slice(4, 6)}-${timestamp.slice(6, 8)}`
+}
+
 const baseRanking = [
   {
     documentId: 'doc-a',
@@ -12,6 +19,9 @@ const baseRanking = [
     inboundReferences: 4,
     distinctSourceDocuments: 1,
     outboundReferences: 0,
+    tagCount: 1,
+    createdAt: '20260302090000',
+    updatedAt: '20260313110000',
     lastActiveAt: '20260310120000',
     suggestions: [
       { label: '升级为主题页', text: '建议补齐总览结构并承接更多入链。' },
@@ -31,7 +41,7 @@ describe('RankingPanel', () => {
         isExpanded: true,
         onTogglePanel: vi.fn(),
         resolveTitle: (id: string) => id,
-        formatTimestamp: () => '2026-03-10',
+        formatTimestamp: formatDate,
         openDocument: vi.fn(),
         toggleLinkPanel,
         isLinkPanelExpanded: () => false,
@@ -46,6 +56,7 @@ describe('RankingPanel', () => {
     const html = await renderToString(app)
 
     expect(html).toContain('查看关联引用/链接')
+    expect(html).toContain('ghost-button ghost-button--filled')
   })
 
   it('renders expanded group buttons with caret state', async () => {
@@ -57,7 +68,7 @@ describe('RankingPanel', () => {
         isExpanded: true,
         onTogglePanel: vi.fn(),
         resolveTitle: (id: string) => id,
-        formatTimestamp: () => '2026-03-10',
+        formatTimestamp: formatDate,
         openDocument: vi.fn(),
         toggleLinkPanel: vi.fn(),
         isLinkPanelExpanded: () => true,
@@ -86,7 +97,7 @@ describe('RankingPanel', () => {
         isExpanded: true,
         onTogglePanel: vi.fn(),
         resolveTitle: (id: string) => id,
-        formatTimestamp: () => '2026-03-10',
+        formatTimestamp: formatDate,
         openDocument: vi.fn(),
         toggleLinkPanel: vi.fn(),
         isLinkPanelExpanded: () => true,
@@ -117,7 +128,7 @@ describe('RankingPanel', () => {
         isExpanded: true,
         onTogglePanel: vi.fn(),
         resolveTitle: (id: string) => id,
-        formatTimestamp: () => '2026-03-10',
+        formatTimestamp: formatDate,
         openDocument: vi.fn(),
         toggleLinkPanel: vi.fn(),
         isLinkPanelExpanded: () => true,
@@ -149,7 +160,7 @@ describe('RankingPanel', () => {
         isExpanded: true,
         onTogglePanel: vi.fn(),
         resolveTitle: (id: string) => id,
-        formatTimestamp: () => '2026-03-10',
+        formatTimestamp: formatDate,
         openDocument: vi.fn(),
         toggleLinkPanel: vi.fn(),
         isLinkPanelExpanded: () => false,
@@ -179,7 +190,7 @@ describe('RankingPanel', () => {
         isExpanded: true,
         onTogglePanel: vi.fn(),
         resolveTitle: (id: string) => id,
-        formatTimestamp: () => '2026-03-10',
+        formatTimestamp: formatDate,
         openDocument: vi.fn(),
         toggleLinkPanel: vi.fn(),
         isLinkPanelExpanded: () => false,
@@ -193,7 +204,11 @@ describe('RankingPanel', () => {
 
     const html = await renderToString(app)
 
-    expect(html).toContain('4 次引用')
+    expect(html).toContain('4 个反链')
     expect(html).toContain('1 个来源文档')
+    expect(html).toContain('1 个标签')
+    expect(html).toContain('0 个正链')
+    expect(html).toContain('创建：2026-03-02')
+    expect(html).toContain('更新：2026-03-13')
   })
 })

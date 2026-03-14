@@ -152,6 +152,9 @@ describe('buildSummaryDetailSections', () => {
     expect(sections.ranking.ranking).toEqual([
       expect.objectContaining({
         documentId: 'doc-b',
+        tagCount: 1,
+        createdAt: '20260302090000',
+        updatedAt: '20260310120000',
         isThemeDocument: true,
         suggestions: [],
       }),
